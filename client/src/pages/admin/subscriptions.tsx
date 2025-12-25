@@ -141,6 +141,7 @@ export default function AdminSubscriptions() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/plans'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/subscription/plans'] });
       toast({ title: "Plan created successfully" });
       setShowPlanDialog(false);
       form.reset();
@@ -156,6 +157,7 @@ export default function AdminSubscriptions() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/plans'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/subscription/plans'] });
       toast({ title: "Plan updated successfully" });
       setShowPlanDialog(false);
       setEditingPlan(null);
@@ -172,6 +174,7 @@ export default function AdminSubscriptions() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/plans'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/subscription/plans'] });
       toast({ title: "Plan deleted successfully" });
       setDeletePlanId(null);
     },
