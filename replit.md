@@ -78,8 +78,29 @@ The platform includes a comprehensive admin panel with role-based access control
   - `/api/admin/*` routes require admin authentication
   - Super admin actions require additional `superAdminMiddleware`
 
+### Subscription System
+
+The platform uses Stripe for subscription management with three tiers:
+- **Free Plan**: 5 scans/month, basic AI detection
+- **Pro Plan**: $19.99/month (or $199.99/year), unlimited scans, grammar checking, priority support
+- **Enterprise Plan**: $99.99/month (or $999.99/year), API access, team management, dedicated support
+
+Key components:
+- `server/stripeClient.ts`: Stripe client initialization using Replit's Stripe connector
+- `server/stripeService.ts`: Service layer for Stripe operations (customers, checkout, portal)
+- `server/webhookHandlers.ts`: Webhook processing for subscription events
+- `server/seed-products.ts`: One-time script to create products in Stripe
+- `client/src/pages/subscription.tsx`: Subscription management UI
+
+User schema includes:
+- `stripeCustomerId`: Stripe customer ID for the user
+- `stripeSubscriptionId`: Active subscription ID
+- `subscriptionStatus`: Status of subscription (active, canceled, etc.)
+- `subscriptionPlan`: Name of the current plan
+
 ### External Dependencies
 
+- **Stripe**: Payment processing and subscription management via Replit Stripe connector
 - **OpenAI API**: Used for AI content detection through Replit AI Integrations (custom base URL)
 - **AWS S3**: Document storage with presigned URLs for downloads
 - **SMTP Email**: OTP delivery using Nodemailer
