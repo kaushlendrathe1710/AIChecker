@@ -493,7 +493,7 @@ export async function registerRoutes(
           return { ...user, stats };
         })
       );
-      res.json({ users: usersWithStats });
+      res.json(usersWithStats);
     } catch (error) {
       console.error("Admin users error:", error);
       res.status(500).json({ error: "Failed to fetch users" });
@@ -526,10 +526,44 @@ export async function registerRoutes(
   app.get("/api/admin/admins", authMiddleware, adminMiddleware, async (req, res) => {
     try {
       const admins = await storage.getAllAdmins();
-      res.json({ admins });
+      res.json(admins);
     } catch (error) {
       console.error("Admin admins error:", error);
       res.status(500).json({ error: "Failed to fetch admins" });
+    }
+  });
+
+  app.post("/api/admin/promote/:id", authMiddleware, superAdminMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.params.id);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const updated = await storage.setAdminStatus(req.params.id, true);
+      res.json({ success: true, user: updated });
+    } catch (error) {
+      console.error("Promote admin error:", error);
+      res.status(500).json({ error: "Failed to promote user" });
+    }
+  });
+
+  app.post("/api/admin/demote/:id", authMiddleware, superAdminMiddleware, async (req, res) => {
+    try {
+      const adminToDemote = await storage.getUser(req.params.id);
+      if (!adminToDemote) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      if (adminToDemote.isSuperAdmin) {
+        return res.status(403).json({ error: "Cannot demote super admin" });
+      }
+
+      const updated = await storage.setAdminStatus(req.params.id, false);
+      res.json({ success: true, user: updated });
+    } catch (error) {
+      console.error("Demote admin error:", error);
+      res.status(500).json({ error: "Failed to demote admin" });
     }
   });
 
@@ -581,7 +615,7 @@ export async function registerRoutes(
           return { ...doc, userEmail: user?.email, userName: user?.fullName };
         })
       );
-      res.json({ documents: docsWithUsers });
+      res.json(docsWithUsers);
     } catch (error) {
       console.error("Admin documents error:", error);
       res.status(500).json({ error: "Failed to fetch documents" });
