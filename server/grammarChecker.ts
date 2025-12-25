@@ -18,51 +18,62 @@ interface GrammarCheckResult {
 }
 
 export async function checkGrammar(text: string): Promise<GrammarCheckResult> {
-  const chunks = splitTextIntoChunks(text, 2000);
+  const chunks = splitTextIntoChunks(text, 2500);
   const allMistakes: GrammarMistake[] = [];
+  const correctedChunks: string[] = [];
   let currentOffset = 0;
 
-  for (const chunk of chunks.slice(0, 3)) {
+  for (const chunk of chunks.slice(0, 5)) {
     try {
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
             role: "system",
-            content: `You are a professional grammar checker. Analyze the text and identify ALL grammatical, spelling, punctuation, and style errors.
+            content: `You are an expert grammar, spelling, and style checker. Analyze the provided text thoroughly and identify ALL errors.
 
-For each error found, provide:
-- The exact text with the error
-- The type of error (spelling, grammar, punctuation, or style)
-- A suggested correction
-- A brief explanation
+ERROR CATEGORIES:
+1. SPELLING: Misspelled words, typos, incorrect word forms
+2. GRAMMAR: Subject-verb agreement, tense errors, incorrect word order, article usage, pronoun errors
+3. PUNCTUATION: Missing/incorrect commas, periods, apostrophes, quotation marks, semicolons, colons
+4. STYLE: Redundant words, passive voice overuse, wordy sentences, unclear phrasing, informal language in formal context
 
-Respond with ONLY a JSON object in this exact format:
+ANALYSIS REQUIREMENTS:
+- Find EVERY error, no matter how small
+- For each error, provide the EXACT text as it appears (copy precisely)
+- Provide specific, actionable corrections
+- Include clear explanations that help the user learn
+
+RESPONSE FORMAT - Return ONLY valid JSON:
 {
   "mistakes": [
     {
-      "text": "the exact text with error",
+      "text": "exact text with error (copy verbatim)",
       "type": "spelling|grammar|punctuation|style",
-      "suggestion": "the corrected text",
-      "explanation": "brief explanation of the error"
+      "suggestion": "corrected version of the text",
+      "explanation": "clear explanation of the error and why the correction is better"
     }
   ],
-  "correctedText": "the full text with all corrections applied"
+  "correctedText": "the complete chunk with ALL corrections applied"
 }
 
-Be thorough but accurate. Do not flag correct usage as errors.`
+IMPORTANT:
+- The "text" field must match the original EXACTLY (same capitalization, spacing)
+- The "correctedText" field must contain the ENTIRE chunk with all fixes applied
+- Be thorough - users rely on this for important documents
+- Don't flag correct usage as errors (avoid false positives)`
           },
           {
             role: "user",
             content: chunk
           }
         ],
-        temperature: 0.1,
-        max_completion_tokens: 2000,
+        max_completion_tokens: 3000,
       });
 
       const content = response.choices[0]?.message?.content || '{"mistakes": [], "correctedText": ""}';
-      const parsed = JSON.parse(content.replace(/```json\n?|\n?```/g, ""));
+      const cleanedContent = content.replace(/```json\n?|\n?```/g, "").trim();
+      const parsed = JSON.parse(cleanedContent);
 
       for (const mistake of parsed.mistakes || []) {
         const startIndex = chunk.indexOf(mistake.text);
@@ -77,8 +88,11 @@ Be thorough but accurate. Do not flag correct usage as errors.`
           });
         }
       }
+
+      correctedChunks.push(parsed.correctedText || chunk);
     } catch (error) {
       console.error("Grammar check error for chunk:", error);
+      correctedChunks.push(chunk);
     }
     currentOffset += chunk.length;
   }
@@ -91,16 +105,11 @@ Be thorough but accurate. Do not flag correct usage as errors.`
 
   const wordCount = text.split(/\s+/).length;
   const errorRate = totalMistakes / Math.max(wordCount, 1);
-  const overallScore = Math.max(0, Math.min(100, 100 - (errorRate * 500)));
+  const overallScore = Math.max(0, Math.min(100, 100 - (errorRate * 300)));
 
-  let correctedText = text;
-  const sortedMistakes = [...allMistakes].sort((a, b) => b.startIndex - a.startIndex);
-  for (const mistake of sortedMistakes) {
-    correctedText = 
-      correctedText.substring(0, mistake.startIndex) + 
-      mistake.suggestion + 
-      correctedText.substring(mistake.endIndex);
-  }
+  const correctedText = correctedChunks.length > 0 
+    ? correctedChunks.join("")
+    : text;
 
   return {
     totalMistakes,

@@ -473,6 +473,30 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/documents/:id/download-corrected", authMiddleware, async (req, res) => {
+    try {
+      const doc = await storage.getDocument(req.params.id);
+      if (!doc || doc.userId !== req.userId) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+
+      const grammarResult = await storage.getGrammarResultByDocument(doc.id);
+      if (!grammarResult || !grammarResult.correctedText) {
+        return res.status(404).json({ error: "No corrections available" });
+      }
+
+      const baseName = doc.fileName.replace(/\.[^/.]+$/, "");
+      const correctedFileName = `${baseName}_corrected.txt`;
+      
+      res.json({
+        fileName: correctedFileName,
+        content: grammarResult.correctedText,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to download corrected file" });
+    }
+  });
+
   // Admin Routes
   app.get("/api/admin/stats", authMiddleware, adminMiddleware, async (req, res) => {
     try {

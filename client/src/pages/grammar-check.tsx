@@ -331,12 +331,13 @@ export default function GrammarCheckPage() {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button
             variant="outline"
             size="sm"
             onClick={() => startCheckMutation.mutate()}
             disabled={startCheckMutation.isPending}
+            data-testid="button-recheck"
           >
             {startCheckMutation.isPending ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -346,18 +347,59 @@ export default function GrammarCheckPage() {
             Re-check
           </Button>
           <Button
+            variant="outline"
             size="sm"
             onClick={() => applyCorrectionsMutation.mutate()}
             disabled={applyCorrectionsMutation.isPending || mistakes.length === 0}
+            data-testid="button-copy-corrections"
           >
             {applyCorrectionsMutation.isPending ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : copied ? (
               <Check className="w-4 h-4 mr-2" />
             ) : (
-              <Wand2 className="w-4 h-4 mr-2" />
+              <Copy className="w-4 h-4 mr-2" />
             )}
-            {copied ? "Copied" : "Auto-Correct"}
+            {copied ? "Copied" : "Copy Corrected"}
+          </Button>
+          <Button
+            size="sm"
+            onClick={async () => {
+              try {
+                const sessionId = getSessionId();
+                const res = await fetch(`/api/documents/${documentId}/download-corrected`, {
+                  headers: { "x-session-id": sessionId || "" },
+                });
+                if (!res.ok) throw new Error("Failed to download");
+                const data = await res.json();
+                
+                const blob = new Blob([data.content], { type: "text/plain;charset=utf-8" });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = data.fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                toast({
+                  title: "Download Complete",
+                  description: `${data.fileName} has been downloaded.`,
+                });
+              } catch (error) {
+                toast({
+                  title: "Download Failed",
+                  description: "Could not download the corrected file.",
+                  variant: "destructive",
+                });
+              }
+            }}
+            disabled={mistakes.length === 0}
+            data-testid="button-download-corrected"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Download Corrected
           </Button>
         </div>
       </div>
