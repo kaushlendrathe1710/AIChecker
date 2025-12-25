@@ -48,6 +48,7 @@ Key database tables:
 - `scanResults` - Plagiarism analysis results
 - `sourceMatches` - Individual matched sources from scans
 - `grammarResults` - Grammar check analysis results
+- `subscriptionPlans` - Custom subscription plans with pricing, limits, and feature flags
 
 ### Authentication and Authorization
 
@@ -74,16 +75,21 @@ The platform includes a comprehensive admin panel with role-based access control
   - User management (view all users, delete non-admin users)
   - Admin management (promote/demote users - super admin only)
   - Document oversight (view all uploaded documents)
+  - Subscription management with custom plan creation (super admin only)
+  - Manual user subscription assignment (super admin only)
 - **Protected Routes**:
   - `/api/admin/*` routes require admin authentication
   - Super admin actions require additional `superAdminMiddleware`
 
 ### Subscription System
 
-The platform uses Stripe for subscription management with three tiers:
-- **Free Plan**: 5 scans/month, basic AI detection
-- **Pro Plan**: $19.99/month (or $199.99/year), unlimited scans, grammar checking, priority support
-- **Enterprise Plan**: $99.99/month (or $999.99/year), API access, team management, dedicated support
+The platform uses Stripe for subscription management with customizable tiers. Super admins can create/edit/delete plans with:
+- Configurable pricing (amount in cents, currency, billing interval)
+- Monthly scan limits (-1 for unlimited)
+- Feature flags: AI detection, grammar checking, API access, team management, priority support
+- Active/inactive status and display ordering
+
+Super admins can also manually assign any plan to any user, bypassing Stripe checkout for special cases.
 
 Key components:
 - `server/stripeClient.ts`: Stripe client initialization using Replit's Stripe connector
