@@ -88,6 +88,26 @@ export const grammarResults = pgTable("grammar_results", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const subscriptionPlans = pgTable("subscription_plans", {
+  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  stripePriceId: text("stripe_price_id"),
+  stripeProductId: text("stripe_product_id"),
+  priceAmount: integer("price_amount").notNull().default(0),
+  currency: text("currency").notNull().default("usd"),
+  interval: text("interval").notNull().default("month"),
+  monthlyScans: integer("monthly_scans").notNull().default(5),
+  hasAiDetection: boolean("has_ai_detection").notNull().default(true),
+  hasGrammarCheck: boolean("has_grammar_check").notNull().default(false),
+  hasApiAccess: boolean("has_api_access").notNull().default(false),
+  hasTeamManagement: boolean("has_team_management").notNull().default(false),
+  hasPrioritySupport: boolean("has_priority_support").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(true),
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -129,6 +149,11 @@ export const insertGrammarResultSchema = createInsertSchema(grammarResults).omit
   createdAt: true,
 });
 
+export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -149,6 +174,9 @@ export type SourceMatch = typeof sourceMatches.$inferSelect;
 
 export type InsertGrammarResult = z.infer<typeof insertGrammarResultSchema>;
 export type GrammarResult = typeof grammarResults.$inferSelect;
+
+export type InsertSubscriptionPlan = z.infer<typeof insertSubscriptionPlanSchema>;
+export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
 
 export const emailSchema = z.object({
   email: z.string().email("Please enter a valid email address"),

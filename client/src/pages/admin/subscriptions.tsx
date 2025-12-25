@@ -1,7 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -10,22 +17,205 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CreditCard, Users, TrendingUp, DollarSign } from "lucide-react";
-import type { User } from "@shared/schema";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { CreditCard, Users, TrendingUp, Plus, Pencil, Trash2, UserCog } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/lib/auth";
+import type { User, SubscriptionPlan } from "@shared/schema";
+
+const planFormSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  description: z.string().optional(),
+  priceAmount: z.number().min(0),
+  currency: z.string().default("usd"),
+  interval: z.string().default("month"),
+  monthlyScans: z.number().min(-1),
+  hasAiDetection: z.boolean().default(true),
+  hasGrammarCheck: z.boolean().default(false),
+  hasApiAccess: z.boolean().default(false),
+  hasTeamManagement: z.boolean().default(false),
+  hasPrioritySupport: z.boolean().default(false),
+  displayOrder: z.number().default(0),
+});
+
+type PlanFormData = z.infer<typeof planFormSchema>;
 
 export default function AdminSubscriptions() {
+  const { toast } = useToast();
+  const { user: currentUser } = useAuth();
+  const [showPlanDialog, setShowPlanDialog] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
+  const [deletePlanId, setDeletePlanId] = useState<string | null>(null);
+  const [assignUserDialog, setAssignUserDialog] = useState<User | null>(null);
+  const [selectedPlanForUser, setSelectedPlanForUser] = useState("");
+
   const { data: users, isLoading } = useQuery<User[]>({
     queryKey: ['/api/admin/users'],
   });
 
+  const { data: plans, isLoading: plansLoading } = useQuery<SubscriptionPlan[]>({
+    queryKey: ['/api/admin/plans'],
+  });
+
+  const form = useForm<PlanFormData>({
+    resolver: zodResolver(planFormSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      priceAmount: 0,
+      currency: "usd",
+      interval: "month",
+      monthlyScans: 5,
+      hasAiDetection: true,
+      hasGrammarCheck: false,
+      hasApiAccess: false,
+      hasTeamManagement: false,
+      hasPrioritySupport: false,
+      displayOrder: 0,
+    },
+  });
+
+  const createPlanMutation = useMutation({
+    mutationFn: async (data: PlanFormData) => {
+      await apiRequest('POST', '/api/admin/plans', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/plans'] });
+      toast({ title: "Plan created successfully" });
+      setShowPlanDialog(false);
+      form.reset();
+    },
+    onError: () => {
+      toast({ title: "Failed to create plan", variant: "destructive" });
+    },
+  });
+
+  const updatePlanMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<PlanFormData> }) => {
+      await apiRequest('PATCH', `/api/admin/plans/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/plans'] });
+      toast({ title: "Plan updated successfully" });
+      setShowPlanDialog(false);
+      setEditingPlan(null);
+      form.reset();
+    },
+    onError: () => {
+      toast({ title: "Failed to update plan", variant: "destructive" });
+    },
+  });
+
+  const deletePlanMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest('DELETE', `/api/admin/plans/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/plans'] });
+      toast({ title: "Plan deleted successfully" });
+      setDeletePlanId(null);
+    },
+    onError: () => {
+      toast({ title: "Failed to delete plan", variant: "destructive" });
+    },
+  });
+
+  const assignSubscriptionMutation = useMutation({
+    mutationFn: async ({ userId, planName }: { userId: string; planName: string }) => {
+      await apiRequest('POST', `/api/admin/users/${userId}/subscription`, { planName, status: "active" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({ title: "Subscription assigned successfully" });
+      setAssignUserDialog(null);
+      setSelectedPlanForUser("");
+    },
+    onError: () => {
+      toast({ title: "Failed to assign subscription", variant: "destructive" });
+    },
+  });
+
+  const removeSubscriptionMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      await apiRequest('DELETE', `/api/admin/users/${userId}/subscription`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({ title: "Subscription removed successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to remove subscription", variant: "destructive" });
+    },
+  });
+
   const subscribedUsers = users?.filter(u => u.subscriptionPlan && u.subscriptionStatus === 'active') ?? [];
   const freeUsers = users?.filter(u => !u.subscriptionPlan || u.subscriptionStatus !== 'active') ?? [];
-  
-  const planCounts = subscribedUsers.reduce((acc, user) => {
-    const plan = user.subscriptionPlan || 'Unknown';
-    acc[plan] = (acc[plan] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+
+  const handleEditPlan = (plan: SubscriptionPlan) => {
+    setEditingPlan(plan);
+    form.reset({
+      name: plan.name,
+      description: plan.description || "",
+      priceAmount: plan.priceAmount,
+      currency: plan.currency,
+      interval: plan.interval,
+      monthlyScans: plan.monthlyScans,
+      hasAiDetection: plan.hasAiDetection,
+      hasGrammarCheck: plan.hasGrammarCheck,
+      hasApiAccess: plan.hasApiAccess,
+      hasTeamManagement: plan.hasTeamManagement,
+      hasPrioritySupport: plan.hasPrioritySupport,
+      displayOrder: plan.displayOrder,
+    });
+    setShowPlanDialog(true);
+  };
+
+  const handleCreateNew = () => {
+    setEditingPlan(null);
+    form.reset();
+    setShowPlanDialog(true);
+  };
+
+  const onSubmit = (data: PlanFormData) => {
+    if (editingPlan) {
+      updatePlanMutation.mutate({ id: editingPlan.id, data });
+    } else {
+      createPlanMutation.mutate(data);
+    }
+  };
 
   const stats = [
     {
@@ -55,7 +245,7 @@ export default function AdminSubscriptions() {
     <div className="p-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold" data-testid="text-subscriptions-title">Subscription Management</h1>
-        <p className="text-muted-foreground mt-1">Monitor and manage user subscriptions</p>
+        <p className="text-muted-foreground mt-1">Manage plans and user subscriptions</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3 mb-8">
@@ -80,57 +270,101 @@ export default function AdminSubscriptions() {
         ))}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 mb-8">
-        <Card>
+      {currentUser?.isSuperAdmin && (
+        <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Plan Distribution</CardTitle>
-            <CardDescription>Breakdown by subscription plan</CardDescription>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <CardTitle>Subscription Plans</CardTitle>
+                <CardDescription>Create and manage subscription plans</CardDescription>
+              </div>
+              <Button onClick={handleCreateNew} className="gap-2" data-testid="button-create-plan">
+                <Plus className="w-4 h-4" />
+                Create Plan
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {plansLoading ? (
               <div className="space-y-3">
-                {[1, 2, 3].map(i => <Skeleton key={i} className="h-8 w-full" />)}
+                {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
               </div>
-            ) : Object.keys(planCounts).length === 0 ? (
-              <p className="text-muted-foreground text-sm">No active subscriptions</p>
+            ) : !plans?.length ? (
+              <p className="text-muted-foreground text-center py-8">No subscription plans created yet</p>
             ) : (
-              <div className="space-y-3">
-                {Object.entries(planCounts).map(([plan, count]) => (
-                  <div key={plan} className="flex items-center justify-between">
-                    <span className="font-medium">{plan}</span>
-                    <Badge variant="secondary">{count} users</Badge>
-                  </div>
-                ))}
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Plan Name</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Scans/Month</TableHead>
+                      <TableHead>Features</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {plans.map((plan) => (
+                      <TableRow key={plan.id} data-testid={`row-plan-${plan.id}`}>
+                        <TableCell className="font-medium">{plan.name}</TableCell>
+                        <TableCell>
+                          {plan.priceAmount === 0 ? (
+                            <span className="text-muted-foreground">Free</span>
+                          ) : (
+                            `$${(plan.priceAmount / 100).toFixed(2)}/${plan.interval}`
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {plan.monthlyScans === -1 ? "Unlimited" : plan.monthlyScans}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {plan.hasAiDetection && <Badge variant="outline">AI</Badge>}
+                            {plan.hasGrammarCheck && <Badge variant="outline">Grammar</Badge>}
+                            {plan.hasApiAccess && <Badge variant="outline">API</Badge>}
+                            {plan.hasPrioritySupport && <Badge variant="outline">Priority</Badge>}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={plan.isActive ? "default" : "secondary"}>
+                            {plan.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEditPlan(plan)}
+                              data-testid={`button-edit-plan-${plan.id}`}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeletePlanId(plan.id)}
+                              data-testid={`button-delete-plan-${plan.id}`}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenue Overview</CardTitle>
-            <CardDescription>Estimated monthly recurring revenue</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-lg bg-green-500/10">
-                <DollarSign className="w-6 h-6 text-green-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">View detailed revenue in Stripe Dashboard</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {planCounts['Pro Plan'] || 0} Pro x $19.99 + {planCounts['Enterprise Plan'] || 0} Enterprise x $99.99
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      )}
 
       <Card>
         <CardHeader>
-          <CardTitle>Subscribed Users</CardTitle>
-          <CardDescription>Users with active subscriptions</CardDescription>
+          <CardTitle>User Subscriptions</CardTitle>
+          <CardDescription>View and manage individual user subscriptions</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -143,43 +377,251 @@ export default function AdminSubscriptions() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>User</TableHead>
-                    <TableHead>Plan</TableHead>
+                    <TableHead>Current Plan</TableHead>
                     <TableHead>Status</TableHead>
+                    {currentUser?.isSuperAdmin && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {subscribedUsers.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
-                        No active subscriptions
+                  {users?.slice(0, 20).map((user) => (
+                    <TableRow key={user.id} data-testid={`row-user-sub-${user.id}`}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{user.fullName || "Unnamed"}</div>
+                          <div className="text-sm text-muted-foreground">{user.email}</div>
+                        </div>
                       </TableCell>
-                    </TableRow>
-                  ) : (
-                    subscribedUsers.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{user.fullName || "Unnamed"}</div>
-                            <div className="text-sm text-muted-foreground">{user.email}</div>
+                      <TableCell>
+                        {user.subscriptionPlan ? (
+                          <Badge>{user.subscriptionPlan}</Badge>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">Free</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={user.subscriptionStatus === 'active' ? 'default' : 'secondary'}>
+                          {user.subscriptionStatus || "none"}
+                        </Badge>
+                      </TableCell>
+                      {currentUser?.isSuperAdmin && (
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setAssignUserDialog(user)}
+                              data-testid={`button-assign-sub-${user.id}`}
+                            >
+                              <UserCog className="w-4 h-4 mr-1" />
+                              Assign
+                            </Button>
+                            {user.subscriptionPlan && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeSubscriptionMutation.mutate(user.id)}
+                                data-testid={`button-remove-sub-${user.id}`}
+                              >
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <Badge>{user.subscriptionPlan}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={user.subscriptionStatus === 'active' ? 'default' : 'secondary'}>
-                            {user.subscriptionStatus}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
+                      )}
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </div>
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={showPlanDialog} onOpenChange={setShowPlanDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingPlan ? "Edit Plan" : "Create New Plan"}</DialogTitle>
+            <DialogDescription>
+              {editingPlan ? "Update the subscription plan details" : "Add a new subscription plan"}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Plan Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Pro Plan" {...field} data-testid="input-plan-name" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Plan description" {...field} data-testid="input-plan-description" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="priceAmount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Price (cents)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="1999" 
+                          {...field} 
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          data-testid="input-plan-price"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="monthlyScans"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Scans/Month (-1 = unlimited)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="5" 
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          data-testid="input-plan-scans"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="space-y-2">
+                <FormLabel>Features</FormLabel>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { name: "hasAiDetection", label: "AI Detection" },
+                    { name: "hasGrammarCheck", label: "Grammar Check" },
+                    { name: "hasApiAccess", label: "API Access" },
+                    { name: "hasPrioritySupport", label: "Priority Support" },
+                    { name: "hasTeamManagement", label: "Team Management" },
+                  ].map((feature) => (
+                    <FormField
+                      key={feature.name}
+                      control={form.control}
+                      name={feature.name as any}
+                      render={({ field }) => (
+                        <FormItem className="flex items-center gap-2">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <FormLabel className="!mt-0 text-sm font-normal">{feature.label}</FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setShowPlanDialog(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={createPlanMutation.isPending || updatePlanMutation.isPending}
+                  data-testid="button-save-plan"
+                >
+                  {editingPlan ? "Update" : "Create"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!assignUserDialog} onOpenChange={() => setAssignUserDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Subscription</DialogTitle>
+            <DialogDescription>
+              Assign a subscription plan to {assignUserDialog?.fullName || assignUserDialog?.email}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Select value={selectedPlanForUser} onValueChange={setSelectedPlanForUser}>
+              <SelectTrigger data-testid="select-plan-for-user">
+                <SelectValue placeholder="Select a plan" />
+              </SelectTrigger>
+              <SelectContent>
+                {plans?.map((plan) => (
+                  <SelectItem key={plan.id} value={plan.name}>
+                    {plan.name} - {plan.priceAmount === 0 ? "Free" : `$${(plan.priceAmount / 100).toFixed(2)}/${plan.interval}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignUserDialog(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (assignUserDialog && selectedPlanForUser) {
+                  assignSubscriptionMutation.mutate({
+                    userId: assignUserDialog.id,
+                    planName: selectedPlanForUser,
+                  });
+                }
+              }}
+              disabled={!selectedPlanForUser || assignSubscriptionMutation.isPending}
+              data-testid="button-confirm-assign"
+            >
+              Assign Plan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deletePlanId} onOpenChange={() => setDeletePlanId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Plan</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this subscription plan? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletePlanId && deletePlanMutation.mutate(deletePlanId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

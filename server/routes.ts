@@ -622,6 +622,126 @@ export async function registerRoutes(
     }
   });
 
+  // Subscription Plan Management Routes (Super Admin only)
+  app.get("/api/admin/plans", authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+      const plans = await storage.getAllSubscriptionPlans();
+      res.json(plans);
+    } catch (error) {
+      console.error("Get plans error:", error);
+      res.status(500).json({ error: "Failed to fetch subscription plans" });
+    }
+  });
+
+  app.post("/api/admin/plans", authMiddleware, superAdminMiddleware, async (req, res) => {
+    try {
+      const { name, description, priceAmount, currency, interval, monthlyScans, 
+              hasAiDetection, hasGrammarCheck, hasApiAccess, hasTeamManagement, 
+              hasPrioritySupport, displayOrder } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ error: "Plan name is required" });
+      }
+
+      const existing = await storage.getSubscriptionPlanByName(name);
+      if (existing) {
+        return res.status(400).json({ error: "Plan with this name already exists" });
+      }
+
+      const plan = await storage.createSubscriptionPlan({
+        name,
+        description: description || null,
+        priceAmount: priceAmount || 0,
+        currency: currency || "usd",
+        interval: interval || "month",
+        monthlyScans: monthlyScans || 5,
+        hasAiDetection: hasAiDetection ?? true,
+        hasGrammarCheck: hasGrammarCheck ?? false,
+        hasApiAccess: hasApiAccess ?? false,
+        hasTeamManagement: hasTeamManagement ?? false,
+        hasPrioritySupport: hasPrioritySupport ?? false,
+        displayOrder: displayOrder || 0,
+        isActive: true,
+      });
+
+      res.json({ success: true, plan });
+    } catch (error) {
+      console.error("Create plan error:", error);
+      res.status(500).json({ error: "Failed to create subscription plan" });
+    }
+  });
+
+  app.patch("/api/admin/plans/:id", authMiddleware, superAdminMiddleware, async (req, res) => {
+    try {
+      const plan = await storage.getSubscriptionPlan(req.params.id);
+      if (!plan) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+
+      const updated = await storage.updateSubscriptionPlan(req.params.id, req.body);
+      res.json({ success: true, plan: updated });
+    } catch (error) {
+      console.error("Update plan error:", error);
+      res.status(500).json({ error: "Failed to update subscription plan" });
+    }
+  });
+
+  app.delete("/api/admin/plans/:id", authMiddleware, superAdminMiddleware, async (req, res) => {
+    try {
+      const plan = await storage.getSubscriptionPlan(req.params.id);
+      if (!plan) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+
+      await storage.deleteSubscriptionPlan(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete plan error:", error);
+      res.status(500).json({ error: "Failed to delete subscription plan" });
+    }
+  });
+
+  // Manually assign subscription to user (Super Admin only)
+  app.post("/api/admin/users/:id/subscription", authMiddleware, superAdminMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.params.id);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const { planName, status } = req.body;
+      if (!planName) {
+        return res.status(400).json({ error: "Plan name is required" });
+      }
+
+      const updated = await storage.assignUserSubscription(
+        req.params.id, 
+        planName, 
+        status || "active"
+      );
+
+      res.json({ success: true, user: updated });
+    } catch (error) {
+      console.error("Assign subscription error:", error);
+      res.status(500).json({ error: "Failed to assign subscription" });
+    }
+  });
+
+  app.delete("/api/admin/users/:id/subscription", authMiddleware, superAdminMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.params.id);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const updated = await storage.assignUserSubscription(req.params.id, "", "canceled");
+      res.json({ success: true, user: updated });
+    } catch (error) {
+      console.error("Remove subscription error:", error);
+      res.status(500).json({ error: "Failed to remove subscription" });
+    }
+  });
+
   // Seed super admin on startup
   await storage.ensureSuperAdmin(SUPER_ADMIN_EMAIL);
   console.log(`Super admin ensured: ${SUPER_ADMIN_EMAIL}`);
