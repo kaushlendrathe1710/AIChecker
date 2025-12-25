@@ -635,7 +635,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/plans", authMiddleware, superAdminMiddleware, async (req, res) => {
     try {
-      const { name, description, priceAmount, currency, interval, monthlyScans, 
+      const { name, description, stripePriceId, priceAmount, currency, interval, monthlyScans, 
               hasAiDetection, hasPlagiarismCheck, hasGrammarCheck, hasApiAccess, hasTeamManagement, 
               hasPrioritySupport, displayOrder } = req.body;
       
@@ -651,6 +651,7 @@ export async function registerRoutes(
       const plan = await storage.createSubscriptionPlan({
         name,
         description: description || null,
+        stripePriceId: stripePriceId || null,
         priceAmount: priceAmount || 0,
         currency: currency || "aed",
         interval: interval || "month",
@@ -747,6 +748,18 @@ export async function registerRoutes(
   await storage.ensureSuperAdmin(SUPER_ADMIN_EMAIL);
   console.log(`Super admin ensured: ${SUPER_ADMIN_EMAIL}`);
 
+  // Public subscription plans endpoint
+  app.get("/api/subscription/plans", async (req, res) => {
+    try {
+      const allPlans = await storage.getAllSubscriptionPlans();
+      const activePlans = allPlans.filter(p => p.isActive);
+      res.json(activePlans);
+    } catch (error) {
+      console.error("Get plans error:", error);
+      res.status(500).json({ error: "Failed to fetch subscription plans" });
+    }
+  });
+
   // Stripe Routes
   app.get("/api/stripe/config", async (req, res) => {
     try {
@@ -820,9 +833,28 @@ export async function registerRoutes(
 
   app.post("/api/subscription/checkout", authMiddleware, async (req, res) => {
     try {
-      const { priceId } = req.body;
-      if (!priceId) {
-        return res.status(400).json({ error: "Price ID is required" });
+      const { planId, priceId } = req.body;
+      
+      let stripePriceId = priceId;
+      let planName: string | null = null;
+      
+      if (planId) {
+        const plan = await storage.getSubscriptionPlan(planId);
+        if (!plan) {
+          return res.status(404).json({ error: "Plan not found" });
+        }
+        if (!plan.isActive) {
+          return res.status(400).json({ error: "This plan is no longer available" });
+        }
+        if (!plan.stripePriceId) {
+          return res.status(400).json({ error: "This plan is not configured for checkout. Please contact support." });
+        }
+        stripePriceId = plan.stripePriceId;
+        planName = plan.name;
+      }
+      
+      if (!stripePriceId) {
+        return res.status(400).json({ error: "Plan ID or Price ID is required" });
       }
 
       const user = await storage.getUser(req.userId!);
@@ -860,7 +892,7 @@ export async function registerRoutes(
       const baseUrl = `https://${req.get('host')}`;
       const session = await stripeService.createCheckoutSession(
         customerId,
-        priceId,
+        stripePriceId,
         `${baseUrl}/subscription?success=true`,
         `${baseUrl}/subscription?canceled=true`,
         user.id

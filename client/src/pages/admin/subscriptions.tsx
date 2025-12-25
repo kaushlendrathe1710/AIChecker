@@ -82,6 +82,7 @@ const CURRENCIES = [
 const planFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
+  stripePriceId: z.string().optional(),
   priceAmount: z.number().min(0),
   currency: z.string().default("aed"),
   interval: z.string().default("month"),
@@ -119,6 +120,7 @@ export default function AdminSubscriptions() {
     defaultValues: {
       name: "",
       description: "",
+      stripePriceId: "",
       priceAmount: 0,
       currency: "aed",
       interval: "month",
@@ -214,6 +216,7 @@ export default function AdminSubscriptions() {
     form.reset({
       name: plan.name,
       description: plan.description || "",
+      stripePriceId: plan.stripePriceId || "",
       priceAmount: plan.priceAmount,
       currency: plan.currency,
       interval: plan.interval,
@@ -558,6 +561,23 @@ export default function AdminSubscriptions() {
                         {...field}
                         onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                         data-testid="input-plan-scans"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="stripePriceId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Stripe Price ID (for payments)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="price_xxx..." 
+                        {...field} 
+                        data-testid="input-plan-stripe-price"
                       />
                     </FormControl>
                     <FormMessage />
