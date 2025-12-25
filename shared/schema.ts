@@ -95,7 +95,7 @@ export const subscriptionPlans = pgTable("subscription_plans", {
   stripePriceId: text("stripe_price_id"),
   stripeProductId: text("stripe_product_id"),
   priceAmount: integer("price_amount").notNull().default(0),
-  currency: text("currency").notNull().default("usd"),
+  currency: text("currency").notNull().default("aed"),
   interval: text("interval").notNull().default("month"),
   monthlyScans: integer("monthly_scans").notNull().default(5),
   hasAiDetection: boolean("has_ai_detection").notNull().default(true),

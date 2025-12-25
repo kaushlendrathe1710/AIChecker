@@ -57,11 +57,11 @@ import { useAuth } from "@/lib/auth";
 import type { User, SubscriptionPlan } from "@shared/schema";
 
 const CURRENCIES = [
+  { code: "aed", name: "UAE Dirham", symbol: "AED" },
   { code: "usd", name: "US Dollar", symbol: "$" },
   { code: "eur", name: "Euro", symbol: "\u20ac" },
   { code: "gbp", name: "British Pound", symbol: "\u00a3" },
   { code: "inr", name: "Indian Rupee", symbol: "\u20b9" },
-  { code: "aed", name: "UAE Dirham", symbol: "AED" },
   { code: "aud", name: "Australian Dollar", symbol: "A$" },
   { code: "cad", name: "Canadian Dollar", symbol: "C$" },
   { code: "chf", name: "Swiss Franc", symbol: "CHF" },
@@ -83,7 +83,7 @@ const planFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
   priceAmount: z.number().min(0),
-  currency: z.string().default("usd"),
+  currency: z.string().default("aed"),
   interval: z.string().default("month"),
   monthlyScans: z.number().min(-1),
   hasAiDetection: z.boolean().default(true),
@@ -120,7 +120,7 @@ export default function AdminSubscriptions() {
       name: "",
       description: "",
       priceAmount: 0,
-      currency: "usd",
+      currency: "aed",
       interval: "month",
       monthlyScans: 5,
       hasAiDetection: true,

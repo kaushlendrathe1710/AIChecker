@@ -652,7 +652,7 @@ export async function registerRoutes(
         name,
         description: description || null,
         priceAmount: priceAmount || 0,
-        currency: currency || "usd",
+        currency: currency || "aed",
         interval: interval || "month",
         monthlyScans: monthlyScans || 5,
         hasAiDetection: hasAiDetection ?? true,
