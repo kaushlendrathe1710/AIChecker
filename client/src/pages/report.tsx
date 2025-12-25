@@ -20,7 +20,12 @@ import {
   Globe,
   ExternalLink,
   Copy,
+  Bot,
+  FileSearch,
+  Loader2,
 } from "lucide-react";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 import type { Document, ScanResult, SourceMatch, HighlightedSection } from "@shared/schema";
 import { formatDistanceToNow } from "date-fns";
 
@@ -233,6 +238,46 @@ function SourceMatchCard({ match }: { match: SourceMatch }) {
 export default function ReportPage() {
   const params = useParams();
   const documentId = params.id;
+  const { toast } = useToast();
+  const [downloadingAI, setDownloadingAI] = useState(false);
+  const [downloadingPlag, setDownloadingPlag] = useState(false);
+
+  const handleDownloadReport = async (type: "ai" | "plagiarism") => {
+    const setDownloading = type === "ai" ? setDownloadingAI : setDownloadingPlag;
+    setDownloading(true);
+    try {
+      const sessionId = getSessionId();
+      const endpoint = type === "ai" ? "download-ai-report" : "download-plagiarism-report";
+      const res = await fetch(`/api/documents/${documentId}/${endpoint}`, {
+        headers: { "x-session-id": sessionId || "" },
+      });
+      if (!res.ok) {
+        throw new Error("Failed to download report");
+      }
+      const data = await res.json();
+      const blob = new Blob([data.content], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = data.fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({
+        title: "Downloaded",
+        description: `${type === "ai" ? "AI" : "Plagiarism"} report downloaded successfully`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to download report",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const { data, isLoading, error } = useQuery<ReportData>({
     queryKey: ["/api/documents", documentId, "report"],
@@ -308,14 +353,34 @@ export default function ReportPage() {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Share2 className="w-4 h-4 mr-2" />
-            Share
+        <div className="flex flex-wrap gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => handleDownloadReport("ai")}
+            disabled={downloadingAI}
+            data-testid="button-download-ai-report"
+          >
+            {downloadingAI ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4 mr-2" />
+            )}
+            AI Report
           </Button>
-          <Button variant="outline" size="sm">
-            <Download className="w-4 h-4 mr-2" />
-            Download PDF
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => handleDownloadReport("plagiarism")}
+            disabled={downloadingPlag}
+            data-testid="button-download-plag-report"
+          >
+            {downloadingPlag ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Globe className="w-4 h-4 mr-2" />
+            )}
+            Plagiarism Report
           </Button>
         </div>
       </div>
