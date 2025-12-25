@@ -41,12 +41,13 @@ The backend uses a storage abstraction layer (`IStorage` interface) implemented 
 - **Session Storage**: Database-backed sessions with expiration
 
 Key database tables:
-- `users` - User accounts with email-based identification
-- `sessions` - Active user sessions
+- `users` - User accounts with email-based identification (includes isAdmin, isSuperAdmin flags)
+- `sessions` - Active user sessions (7-day expiry, stored in localStorage for persistence)
 - `otpCodes` - Temporary verification codes
 - `documents` - Uploaded document metadata
 - `scanResults` - Plagiarism analysis results
 - `sourceMatches` - Individual matched sources from scans
+- `grammarResults` - Grammar check analysis results
 
 ### Authentication and Authorization
 
@@ -58,6 +59,24 @@ The platform uses a passwordless authentication flow:
 5. Client stores session ID and includes it in `x-session-id` header for authenticated requests
 
 New users complete a registration step after first login to provide their full name and role (student/teacher).
+
+### Admin System
+
+The platform includes a comprehensive admin panel with role-based access control:
+
+- **Super Admin**: kaushlendra.k12@fms.edu (auto-seeded on server startup)
+  - Cannot be deleted or demoted
+  - Has full access to all admin features
+  - Only user who can create or remove other admins
+- **Regular Admins**: Can view all users, documents, and system statistics
+- **Admin Panel Features**:
+  - Dashboard with system statistics (total users, documents, active sessions)
+  - User management (view all users, delete non-admin users)
+  - Admin management (promote/demote users - super admin only)
+  - Document oversight (view all uploaded documents)
+- **Protected Routes**:
+  - `/api/admin/*` routes require admin authentication
+  - Super admin actions require additional `superAdminMiddleware`
 
 ### External Dependencies
 
