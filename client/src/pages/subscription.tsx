@@ -118,7 +118,7 @@ export default function SubscriptionPage() {
   };
 
   const formatInterval = (interval: string, intervalCount: number = 1) => {
-    const unit = interval === 'year' ? 'year' : 'month';
+    const unit = interval === 'day' ? 'day' : 'month';
     if (intervalCount === 1) {
       return unit;
     }

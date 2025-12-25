@@ -601,7 +601,7 @@ export default function AdminSubscriptions() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="month">Month(s)</SelectItem>
-                          <SelectItem value="year">Year(s)</SelectItem>
+                          <SelectItem value="day">Day(s)</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
