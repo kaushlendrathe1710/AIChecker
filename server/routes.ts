@@ -635,7 +635,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/plans", authMiddleware, superAdminMiddleware, async (req, res) => {
     try {
-      const { name, description, stripePriceId, priceAmount, currency, interval, monthlyScans, 
+      const { name, description, stripePriceId, priceAmount, currency, interval, intervalCount, monthlyScans, 
               hasAiDetection, hasPlagiarismCheck, hasGrammarCheck, hasApiAccess, hasTeamManagement, 
               hasPrioritySupport, displayOrder } = req.body;
       
@@ -655,6 +655,7 @@ export async function registerRoutes(
         priceAmount: priceAmount || 0,
         currency: currency || "aed",
         interval: interval || "month",
+        intervalCount: intervalCount || 1,
         monthlyScans: monthlyScans || 5,
         hasAiDetection: hasAiDetection ?? true,
         hasPlagiarismCheck: hasPlagiarismCheck ?? true,

@@ -117,6 +117,14 @@ export default function SubscriptionPage() {
     return `${symbol} ${(amount / 100).toFixed(2)}`;
   };
 
+  const formatInterval = (interval: string, intervalCount: number = 1) => {
+    const unit = interval === 'year' ? 'year' : 'month';
+    if (intervalCount === 1) {
+      return unit;
+    }
+    return `${intervalCount} ${unit}s`;
+  };
+
   const getPlanIcon = (name: string) => {
     if (name.toLowerCase().includes('enterprise') || name.toLowerCase().includes('business')) return Building;
     if (name.toLowerCase().includes('pro') || name.toLowerCase().includes('premium')) return Crown;
@@ -209,7 +217,7 @@ export default function SubscriptionPage() {
                           {formatPrice(plan.priceAmount, plan.currency)}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          per {plan.interval}
+                          per {formatInterval(plan.interval, plan.intervalCount)}
                         </div>
                       </>
                     )}

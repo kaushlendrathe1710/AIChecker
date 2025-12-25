@@ -86,6 +86,7 @@ const planFormSchema = z.object({
   priceAmount: z.number().min(0),
   currency: z.string().default("aed"),
   interval: z.string().default("month"),
+  intervalCount: z.number().min(1).default(1),
   monthlyScans: z.number().min(-1),
   hasAiDetection: z.boolean().default(true),
   hasPlagiarismCheck: z.boolean().default(true),
@@ -124,6 +125,7 @@ export default function AdminSubscriptions() {
       priceAmount: 0,
       currency: "aed",
       interval: "month",
+      intervalCount: 1,
       monthlyScans: 5,
       hasAiDetection: true,
       hasPlagiarismCheck: true,
@@ -137,7 +139,11 @@ export default function AdminSubscriptions() {
 
   const createPlanMutation = useMutation({
     mutationFn: async (data: PlanFormData) => {
-      await apiRequest('POST', '/api/admin/plans', data);
+      const payload = {
+        ...data,
+        priceAmount: Math.round(data.priceAmount * 100),
+      };
+      await apiRequest('POST', '/api/admin/plans', payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/plans'] });
@@ -153,7 +159,11 @@ export default function AdminSubscriptions() {
 
   const updatePlanMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<PlanFormData> }) => {
-      await apiRequest('PATCH', `/api/admin/plans/${id}`, data);
+      const payload = {
+        ...data,
+        priceAmount: data.priceAmount !== undefined ? Math.round(data.priceAmount * 100) : undefined,
+      };
+      await apiRequest('PATCH', `/api/admin/plans/${id}`, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/plans'] });
@@ -220,9 +230,10 @@ export default function AdminSubscriptions() {
       name: plan.name,
       description: plan.description || "",
       stripePriceId: plan.stripePriceId || "",
-      priceAmount: plan.priceAmount,
+      priceAmount: plan.priceAmount / 100,
       currency: plan.currency,
       interval: plan.interval,
+      intervalCount: plan.intervalCount || 1,
       monthlyScans: plan.monthlyScans,
       hasAiDetection: plan.hasAiDetection,
       hasPlagiarismCheck: plan.hasPlagiarismCheck,
@@ -344,7 +355,7 @@ export default function AdminSubscriptions() {
                           {plan.priceAmount === 0 ? (
                             <span className="text-muted-foreground">Free</span>
                           ) : (
-                            `${CURRENCIES.find(c => c.code === plan.currency)?.symbol || plan.currency.toUpperCase()} ${(plan.priceAmount / 100).toFixed(2)}/${plan.interval}`
+                            `${CURRENCIES.find(c => c.code === plan.currency)?.symbol || plan.currency.toUpperCase()} ${(plan.priceAmount / 100).toFixed(2)}/${plan.intervalCount > 1 ? `${plan.intervalCount} ${plan.interval}s` : plan.interval}`
                           )}
                         </TableCell>
                         <TableCell>
@@ -512,13 +523,14 @@ export default function AdminSubscriptions() {
                   name="priceAmount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Price (in smallest unit)</FormLabel>
+                      <FormLabel>Price (e.g., 19.99)</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 
-                          placeholder="1999" 
+                          step="0.01"
+                          placeholder="19.99" 
                           {...field} 
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                           data-testid="input-plan-price"
                         />
                       </FormControl>
@@ -544,6 +556,52 @@ export default function AdminSubscriptions() {
                               {currency.symbol} - {currency.name}
                             </SelectItem>
                           ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="intervalCount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Duration</FormLabel>
+                      <Select value={String(field.value)} onValueChange={(v) => field.onChange(parseInt(v))}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-plan-interval-count">
+                            <SelectValue placeholder="Select duration" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="1">1</SelectItem>
+                          <SelectItem value="3">3</SelectItem>
+                          <SelectItem value="6">6</SelectItem>
+                          <SelectItem value="12">12</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="interval"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Interval</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-plan-interval">
+                            <SelectValue placeholder="Select interval" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="month">Month(s)</SelectItem>
+                          <SelectItem value="year">Year(s)</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
