@@ -10,6 +10,8 @@ export const users = pgTable("users", {
   mobile: text("mobile"),
   role: text("role").notNull().default("student"),
   isVerified: boolean("is_verified").notNull().default(false),
+  isAdmin: boolean("is_admin").notNull().default(false),
+  isSuperAdmin: boolean("is_super_admin").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -86,6 +88,8 @@ export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
   isVerified: true,
+  isAdmin: true,
+  isSuperAdmin: true,
 });
 
 export const insertOtpSchema = createInsertSchema(otpCodes).omit({

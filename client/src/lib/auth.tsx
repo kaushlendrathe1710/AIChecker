@@ -7,6 +7,8 @@ interface User {
   fullName: string | null;
   role: string;
   isVerified: boolean;
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
 }
 
 interface AuthContextType {

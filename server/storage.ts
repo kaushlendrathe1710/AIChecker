@@ -9,7 +9,7 @@ import {
   users, otpCodes, sessions, documents, scanResults, sourceMatches, grammarResults
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gt } from "drizzle-orm";
+import { eq, desc, and, gt, count, ne } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -42,6 +42,21 @@ export interface IStorage {
   getGrammarResultByDocument(documentId: string): Promise<GrammarResult | undefined>;
   
   getUserStats(userId: string): Promise<{ totalScans: number; avgScore: number; lastScan: Date | null }>;
+  
+  getAllUsers(): Promise<User[]>;
+  getAllAdmins(): Promise<User[]>;
+  getAllDocuments(): Promise<Document[]>;
+  getActiveSessionsCount(): Promise<number>;
+  setAdminStatus(userId: string, isAdmin: boolean): Promise<User | undefined>;
+  deleteUser(userId: string): Promise<void>;
+  getSystemStats(): Promise<{
+    totalUsers: number;
+    totalDocuments: number;
+    totalScans: number;
+    totalGrammarChecks: number;
+    activeSessions: number;
+  }>;
+  ensureSuperAdmin(email: string): Promise<User>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -191,6 +206,92 @@ export class DatabaseStorage implements IStorage {
       avgScore: scoreCount > 0 ? totalScore / scoreCount : 0,
       lastScan,
     };
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return db.select().from(users).orderBy(desc(users.createdAt));
+  }
+
+  async getAllAdmins(): Promise<User[]> {
+    return db.select().from(users).where(eq(users.isAdmin, true)).orderBy(desc(users.createdAt));
+  }
+
+  async getAllDocuments(): Promise<Document[]> {
+    return db.select().from(documents).orderBy(desc(documents.createdAt));
+  }
+
+  async getActiveSessionsCount(): Promise<number> {
+    const result = await db.select({ count: count() }).from(sessions).where(gt(sessions.expiresAt, new Date()));
+    return result[0]?.count ?? 0;
+  }
+
+  async setAdminStatus(userId: string, isAdmin: boolean): Promise<User | undefined> {
+    const [updated] = await db.update(users).set({ isAdmin }).where(eq(users.id, userId)).returning();
+    return updated;
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    await db.delete(sessions).where(eq(sessions.userId, userId));
+    const userDocs = await db.select().from(documents).where(eq(documents.userId, userId));
+    for (const doc of userDocs) {
+      await db.delete(grammarResults).where(eq(grammarResults.documentId, doc.id));
+      const scanResult = await this.getScanResultByDocument(doc.id);
+      if (scanResult) {
+        await db.delete(sourceMatches).where(eq(sourceMatches.scanResultId, scanResult.id));
+        await db.delete(scanResults).where(eq(scanResults.id, scanResult.id));
+      }
+    }
+    await db.delete(documents).where(eq(documents.userId, userId));
+    await db.delete(otpCodes).where(eq(otpCodes.email, (await this.getUser(userId))?.email ?? ""));
+    await db.delete(users).where(eq(users.id, userId));
+  }
+
+  async getSystemStats(): Promise<{
+    totalUsers: number;
+    totalDocuments: number;
+    totalScans: number;
+    totalGrammarChecks: number;
+    activeSessions: number;
+  }> {
+    const [userCount] = await db.select({ count: count() }).from(users);
+    const [docCount] = await db.select({ count: count() }).from(documents);
+    const [scanCount] = await db.select({ count: count() }).from(scanResults);
+    const [grammarCount] = await db.select({ count: count() }).from(grammarResults);
+    const activeSessions = await this.getActiveSessionsCount();
+
+    return {
+      totalUsers: userCount?.count ?? 0,
+      totalDocuments: docCount?.count ?? 0,
+      totalScans: scanCount?.count ?? 0,
+      totalGrammarChecks: grammarCount?.count ?? 0,
+      activeSessions,
+    };
+  }
+
+  async ensureSuperAdmin(email: string): Promise<User> {
+    const normalizedEmail = email.toLowerCase();
+    let user = await this.getUserByEmail(normalizedEmail);
+    
+    if (!user) {
+      const [newUser] = await db.insert(users).values({
+        email: normalizedEmail,
+        fullName: "Super Admin",
+        role: "admin",
+        isVerified: true,
+        isAdmin: true,
+        isSuperAdmin: true,
+      }).returning();
+      user = newUser;
+    } else if (!user.isSuperAdmin) {
+      const [updated] = await db.update(users).set({
+        isAdmin: true,
+        isSuperAdmin: true,
+        role: "admin",
+      }).where(eq(users.id, user.id)).returning();
+      user = updated;
+    }
+    
+    return user;
   }
 }
 

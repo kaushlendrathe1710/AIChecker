@@ -32,6 +32,7 @@ import {
   ChevronUp,
   User,
   SpellCheck,
+  Crown,
 } from "lucide-react";
 
 const menuItems = [
@@ -93,6 +94,28 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        
+        {user?.isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Administration</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === "/admin"}
+                    data-testid="nav-admin-panel"
+                  >
+                    <Link href="/admin">
+                      <Crown className="w-4 h-4" />
+                      <span>Admin Panel</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border">

@@ -28,6 +28,8 @@ declare global {
         email: string;
         fullName: string | null;
         role: string;
+        isAdmin: boolean;
+        isSuperAdmin: boolean;
       };
     }
   }
@@ -56,10 +58,28 @@ async function authMiddleware(req: Request, res: Response, next: NextFunction) {
     email: user.email,
     fullName: user.fullName,
     role: user.role,
+    isAdmin: user.isAdmin,
+    isSuperAdmin: user.isSuperAdmin,
   };
   
   next();
 }
+
+async function adminMiddleware(req: Request, res: Response, next: NextFunction) {
+  if (!req.user?.isAdmin) {
+    return res.status(403).json({ error: "Admin access required" });
+  }
+  next();
+}
+
+async function superAdminMiddleware(req: Request, res: Response, next: NextFunction) {
+  if (!req.user?.isSuperAdmin) {
+    return res.status(403).json({ error: "Super admin access required" });
+  }
+  next();
+}
+
+const SUPER_ADMIN_EMAIL = "kaushlendra.k12@fms.edu";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -133,6 +153,8 @@ export async function registerRoutes(
           fullName: user.fullName,
           role: user.role,
           isVerified: user.isVerified,
+          isAdmin: user.isAdmin,
+          isSuperAdmin: user.isSuperAdmin,
         },
         needsRegistration: isNewUser || !user.fullName,
       });
@@ -178,7 +200,14 @@ export async function registerRoutes(
   });
 
   app.get("/api/auth/me", authMiddleware, async (req, res) => {
-    res.json({ user: req.user });
+    const user = await storage.getUser(req.userId!);
+    res.json({ 
+      user: {
+        ...req.user,
+        isAdmin: user?.isAdmin ?? false,
+        isSuperAdmin: user?.isSuperAdmin ?? false,
+      }
+    });
   });
 
   app.post("/api/auth/logout", authMiddleware, async (req, res) => {
@@ -441,6 +470,125 @@ export async function registerRoutes(
       res.status(500).json({ error: "Failed to apply corrections" });
     }
   });
+
+  // Admin Routes
+  app.get("/api/admin/stats", authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+      const stats = await storage.getSystemStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Admin stats error:", error);
+      res.status(500).json({ error: "Failed to fetch admin stats" });
+    }
+  });
+
+  app.get("/api/admin/users", authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const usersWithStats = await Promise.all(
+        allUsers.map(async (user) => {
+          const stats = await storage.getUserStats(user.id);
+          return { ...user, stats };
+        })
+      );
+      res.json({ users: usersWithStats });
+    } catch (error) {
+      console.error("Admin users error:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  app.delete("/api/admin/users/:id", authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+      const userToDelete = await storage.getUser(req.params.id);
+      if (!userToDelete) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      if (userToDelete.isSuperAdmin) {
+        return res.status(403).json({ error: "Cannot delete super admin" });
+      }
+
+      if (userToDelete.isAdmin && !req.user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Only super admin can delete other admins" });
+      }
+
+      await storage.deleteUser(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete user error:", error);
+      res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+
+  app.get("/api/admin/admins", authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+      const admins = await storage.getAllAdmins();
+      res.json({ admins });
+    } catch (error) {
+      console.error("Admin admins error:", error);
+      res.status(500).json({ error: "Failed to fetch admins" });
+    }
+  });
+
+  app.post("/api/admin/admins", authMiddleware, superAdminMiddleware, async (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const updated = await storage.setAdminStatus(userId, true);
+      res.json({ success: true, user: updated });
+    } catch (error) {
+      console.error("Create admin error:", error);
+      res.status(500).json({ error: "Failed to create admin" });
+    }
+  });
+
+  app.delete("/api/admin/admins/:id", authMiddleware, superAdminMiddleware, async (req, res) => {
+    try {
+      const adminToRemove = await storage.getUser(req.params.id);
+      if (!adminToRemove) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      if (adminToRemove.isSuperAdmin) {
+        return res.status(403).json({ error: "Cannot remove super admin privileges" });
+      }
+
+      const updated = await storage.setAdminStatus(req.params.id, false);
+      res.json({ success: true, user: updated });
+    } catch (error) {
+      console.error("Remove admin error:", error);
+      res.status(500).json({ error: "Failed to remove admin" });
+    }
+  });
+
+  app.get("/api/admin/documents", authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+      const allDocs = await storage.getAllDocuments();
+      const docsWithUsers = await Promise.all(
+        allDocs.map(async (doc) => {
+          const user = await storage.getUser(doc.userId);
+          return { ...doc, userEmail: user?.email, userName: user?.fullName };
+        })
+      );
+      res.json({ documents: docsWithUsers });
+    } catch (error) {
+      console.error("Admin documents error:", error);
+      res.status(500).json({ error: "Failed to fetch documents" });
+    }
+  });
+
+  // Seed super admin on startup
+  await storage.ensureSuperAdmin(SUPER_ADMIN_EMAIL);
+  console.log(`Super admin ensured: ${SUPER_ADMIN_EMAIL}`);
 
   return httpServer;
 }
