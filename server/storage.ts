@@ -57,6 +57,12 @@ export interface IStorage {
     activeSessions: number;
   }>;
   ensureSuperAdmin(email: string): Promise<User>;
+  updateUserStripeInfo(userId: string, data: { 
+    stripeCustomerId?: string; 
+    stripeSubscriptionId?: string;
+    subscriptionStatus?: string;
+    subscriptionPlan?: string;
+  }): Promise<User | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -292,6 +298,16 @@ export class DatabaseStorage implements IStorage {
     }
     
     return user;
+  }
+
+  async updateUserStripeInfo(userId: string, data: { 
+    stripeCustomerId?: string; 
+    stripeSubscriptionId?: string;
+    subscriptionStatus?: string;
+    subscriptionPlan?: string;
+  }): Promise<User | undefined> {
+    const [updated] = await db.update(users).set(data).where(eq(users.id, userId)).returning();
+    return updated;
   }
 }
 

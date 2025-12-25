@@ -33,6 +33,7 @@ import {
   User,
   SpellCheck,
   Crown,
+  CreditCard,
 } from "lucide-react";
 
 const menuItems = [
@@ -41,6 +42,7 @@ const menuItems = [
   { title: "Documents", url: "/documents", icon: FileText },
   { title: "Grammar Check", url: "/grammar", icon: SpellCheck },
   { title: "History", url: "/history", icon: History },
+  { title: "Subscription", url: "/subscription", icon: CreditCard },
 ];
 
 export function AppSidebar() {

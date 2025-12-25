@@ -17,6 +17,7 @@ import ReportPage from "@/pages/report";
 import HistoryPage from "@/pages/history";
 import GrammarCheckPage from "@/pages/grammar-check";
 import AdminPage from "@/pages/admin";
+import SubscriptionPage from "@/pages/subscription";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
@@ -163,6 +164,15 @@ function AppRouter() {
           component={() => (
             <DashboardLayout>
               <AdminPage />
+            </DashboardLayout>
+          )}
+        />
+      </Route>
+      <Route path="/subscription">
+        <ProtectedRoute
+          component={() => (
+            <DashboardLayout>
+              <SubscriptionPage />
             </DashboardLayout>
           )}
         />
