@@ -191,6 +191,80 @@ function HighlightedDocument({
   );
 }
 
+function CorrectedDocument({
+  correctedText,
+  originalText,
+  mistakes,
+}: {
+  correctedText: string;
+  originalText: string;
+  mistakes: GrammarMistake[];
+}) {
+  if (!correctedText) {
+    return (
+      <div className="prose prose-sm max-w-none dark:prose-invert whitespace-pre-wrap">
+        {originalText || "No text content available"}
+      </div>
+    );
+  }
+
+  if (mistakes.length === 0) {
+    return (
+      <div className="prose prose-sm max-w-none dark:prose-invert whitespace-pre-wrap">
+        {correctedText}
+      </div>
+    );
+  }
+
+  const elements: JSX.Element[] = [];
+  let currentPos = 0;
+
+  const sortedMistakes = [...mistakes].sort((a, b) => a.startIndex - b.startIndex);
+  
+  sortedMistakes.forEach((mistake, i) => {
+    const suggestion = mistake.suggestion;
+    const suggestionIndex = correctedText.indexOf(suggestion, currentPos);
+    
+    if (suggestionIndex >= currentPos) {
+      if (suggestionIndex > currentPos) {
+        elements.push(
+          <span key={`text-${i}`}>{correctedText.slice(currentPos, suggestionIndex)}</span>
+        );
+      }
+
+      elements.push(
+        <span
+          key={`correction-${i}`}
+          className="bg-yellow-200 dark:bg-yellow-700/50 px-0.5 rounded-sm inline"
+          title={`Corrected from: "${mistake.text}"`}
+        >
+          {suggestion}
+        </span>
+      );
+
+      currentPos = suggestionIndex + suggestion.length;
+    }
+  });
+
+  if (currentPos < correctedText.length) {
+    elements.push(<span key="text-end">{correctedText.slice(currentPos)}</span>);
+  }
+
+  if (elements.length === 0) {
+    return (
+      <div className="prose prose-sm max-w-none dark:prose-invert whitespace-pre-wrap">
+        {correctedText}
+      </div>
+    );
+  }
+
+  return (
+    <div className="prose prose-sm max-w-none dark:prose-invert whitespace-pre-wrap leading-relaxed">
+      {elements}
+    </div>
+  );
+}
+
 export default function GrammarCheckPage() {
   const params = useParams();
   const documentId = params.id;
@@ -212,7 +286,9 @@ export default function GrammarCheckPage() {
     },
     enabled: !!documentId,
     refetchInterval: (query) => {
-      return query.state.error ? false : 3000;
+      if (query.state.error) return false;
+      if (query.state.data?.grammarResult?.correctedText) return false;
+      return 3000;
     },
   });
 
@@ -225,7 +301,7 @@ export default function GrammarCheckPage() {
         title: "Grammar Check Started",
         description: "We're analyzing your document. This may take a moment.",
       });
-      setTimeout(() => refetch(), 2000);
+      queryClient.invalidateQueries({ queryKey: ["/api/documents", documentId, "grammar-report"] });
     },
     onError: () => {
       toast({
@@ -531,16 +607,20 @@ export default function GrammarCheckPage() {
 
         <div className="lg:col-span-2">
           <Card className="h-full">
-            <Tabs defaultValue="document" className="h-full flex flex-col">
+            <Tabs defaultValue="issues" className="h-full flex flex-col">
               <CardHeader className="pb-0">
                 <TabsList className="w-full justify-start">
-                  <TabsTrigger value="document" data-testid="tab-document">
-                    <FileText className="w-4 h-4 mr-2" />
-                    Document
-                  </TabsTrigger>
                   <TabsTrigger value="issues" data-testid="tab-issues">
                     <AlertCircle className="w-4 h-4 mr-2" />
-                    Issues ({mistakes.length})
+                    Errors ({mistakes.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="document" data-testid="tab-document">
+                    <FileText className="w-4 h-4 mr-2" />
+                    Original
+                  </TabsTrigger>
+                  <TabsTrigger value="corrected" data-testid="tab-corrected" disabled={mistakes.length === 0 || !grammarResult.correctedText}>
+                    <Wand2 className="w-4 h-4 mr-2" />
+                    Corrected
                   </TabsTrigger>
                 </TabsList>
               </CardHeader>
@@ -589,6 +669,21 @@ export default function GrammarCheckPage() {
                       </div>
                     )}
                   </ScrollArea>
+                </TabsContent>
+                <TabsContent value="corrected" className="h-full m-0">
+                  <ScrollArea className="h-[500px] pr-4">
+                    <CorrectedDocument
+                      correctedText={grammarResult.correctedText || ""}
+                      originalText={doc.extractedText || ""}
+                      mistakes={mistakes}
+                    />
+                  </ScrollArea>
+                  <div className="flex items-center gap-4 mt-4 pt-4 border-t text-xs text-muted-foreground flex-wrap">
+                    <div className="flex items-center gap-1">
+                      <div className="w-3 h-3 rounded bg-yellow-400" />
+                      <span>Corrected text (highlighted in yellow)</span>
+                    </div>
+                  </div>
                 </TabsContent>
               </CardContent>
             </Tabs>
