@@ -10,7 +10,7 @@ import { randomInt } from "crypto";
 import { uploadFile, getFileBuffer, getSignedDownloadUrl } from "./s3";
 import { checkGrammar } from "./grammarChecker";
 import { stripeService } from "./stripeService";
-import { getStripePublishableKey } from "./stripeClient";
+import { getStripePublishableKey, getUncachableStripeClient } from "./stripeClient";
 
 const upload = multer({ 
   storage: multer.memoryStorage(),
@@ -675,11 +675,31 @@ export async function registerRoutes(
         return res.status(404).json({ error: "User not found" });
       }
 
+      if (user.stripeSubscriptionId && user.subscriptionStatus === 'active') {
+        return res.status(400).json({ error: "You already have an active subscription. Use the billing portal to manage it." });
+      }
+
       let customerId = user.stripeCustomerId;
       if (!customerId) {
-        const customer = await stripeService.createCustomer(user.email, user.id, user.fullName || undefined);
-        await storage.updateUserStripeInfo(user.id, { stripeCustomerId: customer.id });
-        customerId = customer.id;
+        try {
+          const customer = await stripeService.createCustomer(user.email, user.id, user.fullName || undefined);
+          await storage.updateUserStripeInfo(user.id, { stripeCustomerId: customer.id });
+          customerId = customer.id;
+        } catch (customerError: any) {
+          if (customerError?.code === 'resource_already_exists') {
+            console.log('Customer already exists in Stripe, finding existing customer');
+            const stripe = await getUncachableStripeClient();
+            const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+            if (customers.data.length > 0) {
+              customerId = customers.data[0].id;
+              await storage.updateUserStripeInfo(user.id, { stripeCustomerId: customerId });
+            } else {
+              throw new Error('Could not find or create customer');
+            }
+          } else {
+            throw customerError;
+          }
+        }
       }
 
       const baseUrl = `https://${req.get('host')}`;
