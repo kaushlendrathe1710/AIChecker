@@ -636,7 +636,7 @@ export async function registerRoutes(
   app.post("/api/admin/plans", authMiddleware, superAdminMiddleware, async (req, res) => {
     try {
       const { name, description, priceAmount, currency, interval, monthlyScans, 
-              hasAiDetection, hasGrammarCheck, hasApiAccess, hasTeamManagement, 
+              hasAiDetection, hasPlagiarismCheck, hasGrammarCheck, hasApiAccess, hasTeamManagement, 
               hasPrioritySupport, displayOrder } = req.body;
       
       if (!name) {
@@ -656,6 +656,7 @@ export async function registerRoutes(
         interval: interval || "month",
         monthlyScans: monthlyScans || 5,
         hasAiDetection: hasAiDetection ?? true,
+        hasPlagiarismCheck: hasPlagiarismCheck ?? true,
         hasGrammarCheck: hasGrammarCheck ?? false,
         hasApiAccess: hasApiAccess ?? false,
         hasTeamManagement: hasTeamManagement ?? false,

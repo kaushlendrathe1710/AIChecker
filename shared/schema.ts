@@ -99,6 +99,7 @@ export const subscriptionPlans = pgTable("subscription_plans", {
   interval: text("interval").notNull().default("month"),
   monthlyScans: integer("monthly_scans").notNull().default(5),
   hasAiDetection: boolean("has_ai_detection").notNull().default(true),
+  hasPlagiarismCheck: boolean("has_plagiarism_check").notNull().default(true),
   hasGrammarCheck: boolean("has_grammar_check").notNull().default(false),
   hasApiAccess: boolean("has_api_access").notNull().default(false),
   hasTeamManagement: boolean("has_team_management").notNull().default(false),

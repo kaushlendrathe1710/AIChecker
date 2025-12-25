@@ -56,6 +56,29 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import type { User, SubscriptionPlan } from "@shared/schema";
 
+const CURRENCIES = [
+  { code: "usd", name: "US Dollar", symbol: "$" },
+  { code: "eur", name: "Euro", symbol: "\u20ac" },
+  { code: "gbp", name: "British Pound", symbol: "\u00a3" },
+  { code: "inr", name: "Indian Rupee", symbol: "\u20b9" },
+  { code: "aed", name: "UAE Dirham", symbol: "AED" },
+  { code: "aud", name: "Australian Dollar", symbol: "A$" },
+  { code: "cad", name: "Canadian Dollar", symbol: "C$" },
+  { code: "chf", name: "Swiss Franc", symbol: "CHF" },
+  { code: "cny", name: "Chinese Yuan", symbol: "\u00a5" },
+  { code: "jpy", name: "Japanese Yen", symbol: "\u00a5" },
+  { code: "sgd", name: "Singapore Dollar", symbol: "S$" },
+  { code: "hkd", name: "Hong Kong Dollar", symbol: "HK$" },
+  { code: "nzd", name: "New Zealand Dollar", symbol: "NZ$" },
+  { code: "sek", name: "Swedish Krona", symbol: "kr" },
+  { code: "nok", name: "Norwegian Krone", symbol: "kr" },
+  { code: "dkk", name: "Danish Krone", symbol: "kr" },
+  { code: "mxn", name: "Mexican Peso", symbol: "$" },
+  { code: "brl", name: "Brazilian Real", symbol: "R$" },
+  { code: "zar", name: "South African Rand", symbol: "R" },
+  { code: "sar", name: "Saudi Riyal", symbol: "SAR" },
+];
+
 const planFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
@@ -64,6 +87,7 @@ const planFormSchema = z.object({
   interval: z.string().default("month"),
   monthlyScans: z.number().min(-1),
   hasAiDetection: z.boolean().default(true),
+  hasPlagiarismCheck: z.boolean().default(true),
   hasGrammarCheck: z.boolean().default(false),
   hasApiAccess: z.boolean().default(false),
   hasTeamManagement: z.boolean().default(false),
@@ -100,6 +124,7 @@ export default function AdminSubscriptions() {
       interval: "month",
       monthlyScans: 5,
       hasAiDetection: true,
+      hasPlagiarismCheck: true,
       hasGrammarCheck: false,
       hasApiAccess: false,
       hasTeamManagement: false,
@@ -194,6 +219,7 @@ export default function AdminSubscriptions() {
       interval: plan.interval,
       monthlyScans: plan.monthlyScans,
       hasAiDetection: plan.hasAiDetection,
+      hasPlagiarismCheck: plan.hasPlagiarismCheck,
       hasGrammarCheck: plan.hasGrammarCheck,
       hasApiAccess: plan.hasApiAccess,
       hasTeamManagement: plan.hasTeamManagement,
@@ -312,7 +338,7 @@ export default function AdminSubscriptions() {
                           {plan.priceAmount === 0 ? (
                             <span className="text-muted-foreground">Free</span>
                           ) : (
-                            `$${(plan.priceAmount / 100).toFixed(2)}/${plan.interval}`
+                            `${CURRENCIES.find(c => c.code === plan.currency)?.symbol || plan.currency.toUpperCase()} ${(plan.priceAmount / 100).toFixed(2)}/${plan.interval}`
                           )}
                         </TableCell>
                         <TableCell>
@@ -321,6 +347,7 @@ export default function AdminSubscriptions() {
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
                             {plan.hasAiDetection && <Badge variant="outline">AI</Badge>}
+                            {plan.hasPlagiarismCheck && <Badge variant="outline">Plag</Badge>}
                             {plan.hasGrammarCheck && <Badge variant="outline">Grammar</Badge>}
                             {plan.hasApiAccess && <Badge variant="outline">API</Badge>}
                             {plan.hasPrioritySupport && <Badge variant="outline">Priority</Badge>}
@@ -479,7 +506,7 @@ export default function AdminSubscriptions() {
                   name="priceAmount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Price (cents)</FormLabel>
+                      <FormLabel>Price (in smallest unit)</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 
@@ -495,29 +522,54 @@ export default function AdminSubscriptions() {
                 />
                 <FormField
                   control={form.control}
-                  name="monthlyScans"
+                  name="currency"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Scans/Month (-1 = unlimited)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="5" 
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                          data-testid="input-plan-scans"
-                        />
-                      </FormControl>
+                      <FormLabel>Currency</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-plan-currency">
+                            <SelectValue placeholder="Select currency" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {CURRENCIES.map((currency) => (
+                            <SelectItem key={currency.code} value={currency.code}>
+                              {currency.symbol} - {currency.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
+              <FormField
+                control={form.control}
+                name="monthlyScans"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Scans/Month (-1 = unlimited)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        placeholder="5" 
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        data-testid="input-plan-scans"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <div className="space-y-2">
                 <FormLabel>Features</FormLabel>
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { name: "hasAiDetection", label: "AI Detection" },
+                    { name: "hasPlagiarismCheck", label: "Plag Check" },
                     { name: "hasGrammarCheck", label: "Grammar Check" },
                     { name: "hasApiAccess", label: "API Access" },
                     { name: "hasPrioritySupport", label: "Priority Support" },
