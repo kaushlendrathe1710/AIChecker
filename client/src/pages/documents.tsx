@@ -1,28 +1,26 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { getSessionId } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   FileText,
   Upload,
-  ArrowRight,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  Loader2,
-  Play,
-  Eye,
   RefreshCw,
-  SpellCheck,
   Download,
-  Bot,
-  Search,
 } from "lucide-react";
 import type { Document } from "@shared/schema";
+import { format } from "date-fns";
 
 interface DocumentChecks {
   ai: { done: boolean; score: number; status: string } | null;
@@ -33,62 +31,9 @@ interface DocumentChecks {
 interface DocumentWithChecks extends Document {
   checks: DocumentChecks;
 }
-import { format, formatDistanceToNow } from "date-fns";
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function getStatusInfo(status: string) {
-  switch (status) {
-    case "completed":
-      return {
-        badge: (
-          <Badge variant="default" className="bg-green-500/10 text-green-600 border-green-200">
-            <CheckCircle2 className="w-3 h-3 mr-1" />
-            Complete
-          </Badge>
-        ),
-        action: "view",
-      };
-    case "scanning":
-      return {
-        badge: (
-          <Badge variant="default" className="bg-blue-500/10 text-blue-600 border-blue-200">
-            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-            Scanning
-          </Badge>
-        ),
-        action: "wait",
-      };
-    case "failed":
-      return {
-        badge: (
-          <Badge variant="default" className="bg-red-500/10 text-red-600 border-red-200">
-            <XCircle className="w-3 h-3 mr-1" />
-            Failed
-          </Badge>
-        ),
-        action: "retry",
-      };
-    default:
-      return {
-        badge: (
-          <Badge variant="default" className="bg-yellow-500/10 text-yellow-600 border-yellow-200">
-            <AlertTriangle className="w-3 h-3 mr-1" />
-            Pending
-          </Badge>
-        ),
-        action: "scan",
-      };
-  }
-}
 
 export default function DocumentsPage() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   const { data, isLoading, refetch } = useQuery<{ documents: DocumentWithChecks[] }>({
     queryKey: ["/api/documents"],
@@ -103,71 +48,45 @@ export default function DocumentsPage() {
     refetchInterval: 5000,
   });
 
-  const scanMutation = useMutation({
-    mutationFn: async (documentId: string) => {
-      const sessionId = getSessionId();
-      const res = await fetch(`/api/documents/${documentId}/scan`, {
-        method: "POST",
-        headers: { "x-session-id": sessionId || "" },
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Scan failed");
-      }
-      return res.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Scan started",
-        description: "Your document is being analyzed.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Scan failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleDownloadCorrected = async (documentId: string, fileName: string) => {
+  const handleDownloadReport = async (documentId: string, fileName: string, reportType: "ai" | "plagiarism" | "grammar") => {
     try {
       const sessionId = getSessionId();
-      const res = await fetch(`/api/documents/${documentId}/grammar-report`, {
+      let endpoint = "";
+      let reportName = "";
+      
+      switch (reportType) {
+        case "ai":
+          endpoint = `/api/ai-check/${documentId}/download-report`;
+          reportName = `${fileName.replace(/\.[^/.]+$/, "")}_ai_report.pdf`;
+          break;
+        case "plagiarism":
+          endpoint = `/api/plagiarism-check/${documentId}/download-report`;
+          reportName = `${fileName.replace(/\.[^/.]+$/, "")}_plagiarism_report.pdf`;
+          break;
+        case "grammar":
+          endpoint = `/api/grammar-check/${documentId}/download-report`;
+          reportName = `${fileName.replace(/\.[^/.]+$/, "")}_grammar_report.pdf`;
+          break;
+      }
+      
+      const res = await fetch(endpoint, {
         headers: { "x-session-id": sessionId || "" },
       });
       
       if (!res.ok) {
         toast({
-          title: "No corrections available",
-          description: "Run a grammar check first to get corrected text",
+          title: "Download failed",
+          description: "Report not available",
           variant: "destructive",
         });
         return;
       }
       
-      const data = await res.json();
-      
-      if (!data.grammarResult?.correctedText) {
-        toast({
-          title: "No corrections available",
-          description: "Run a grammar check first to get corrected text",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      const correctedText = data.grammarResult.correctedText;
-      const baseName = fileName.replace(/\.[^/.]+$/, "");
-      const newFileName = `${baseName}_corrected.txt`;
-      
-      const blob = new Blob([correctedText], { type: "text/plain" });
+      const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = newFileName;
+      link.download = reportName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -175,12 +94,12 @@ export default function DocumentsPage() {
       
       toast({
         title: "Download complete",
-        description: "Corrected document downloaded successfully",
+        description: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} report downloaded`,
       });
     } catch (error) {
       toast({
         title: "Download failed",
-        description: "Could not download the corrected document",
+        description: "Could not download the report",
         variant: "destructive",
       });
     }
@@ -189,7 +108,7 @@ export default function DocumentsPage() {
   const documents = data?.documents || [];
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold" data-testid="text-page-title">History</h1>
@@ -202,9 +121,9 @@ export default function DocumentsPage() {
             <RefreshCw className="w-4 h-4" />
           </Button>
           <Button asChild data-testid="button-new-upload">
-            <Link href="/upload">
+            <Link href="/dashboard">
               <Upload className="w-4 h-4 mr-2" />
-              Upload New
+              New Check
             </Link>
           </Button>
         </div>
@@ -221,7 +140,7 @@ export default function DocumentsPage() {
           {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="h-20 w-full" />
+                <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
           ) : documents.length === 0 ? (
@@ -229,142 +148,128 @@ export default function DocumentsPage() {
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
                 <FileText className="w-8 h-8 text-muted-foreground" />
               </div>
-              <h3 className="text-lg font-medium text-foreground mb-1">No documents yet</h3>
+              <h3 className="text-lg font-medium text-foreground mb-1">No scans yet</h3>
               <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-                Upload your first document to start checking for plagiarism and AI-generated content
+                Start by running an AI check, plagiarism check, or grammar check on your documents
               </p>
               <Button asChild data-testid="button-upload-first">
-                <Link href="/upload">
+                <Link href="/dashboard">
                   <Upload className="w-4 h-4 mr-2" />
-                  Upload Document
+                  Go to Dashboard
                 </Link>
               </Button>
             </div>
           ) : (
-            <div className="space-y-2">
-              {documents.map((doc) => {
-                const { badge, action } = getStatusInfo(doc.status);
-                return (
-                  <div
-                    key={doc.id}
-                    className="flex items-center justify-between p-4 rounded-lg border"
-                    data-testid={`doc-row-${doc.id}`}
-                  >
-                    <div className="flex items-center gap-4 min-w-0 flex-1">
-                      <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-muted flex-shrink-0">
-                        <FileText className="w-6 h-6 text-muted-foreground" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium truncate" data-testid={`doc-name-${doc.id}`}>
-                          {doc.fileName}
-                        </p>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-                          <span>{format(new Date(doc.createdAt), "MMM d, yyyy 'at' h:mm a")}</span>
-                          <span className="text-muted-foreground/40">|</span>
-                          <span>{formatFileSize(doc.fileSize)}</span>
-                          {doc.wordCount && (
-                            <>
-                              <span className="text-muted-foreground/40">|</span>
-                              <span>{doc.wordCount.toLocaleString()} words</span>
-                            </>
-                          )}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[200px]">File Name</TableHead>
+                    <TableHead className="min-w-[150px]">Date</TableHead>
+                    <TableHead className="text-center min-w-[120px]">AI Check</TableHead>
+                    <TableHead className="text-center min-w-[120px]">Plagiarism</TableHead>
+                    <TableHead className="text-center min-w-[120px]">Grammar</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {documents.map((doc) => (
+                    <TableRow key={doc.id} data-testid={`doc-row-${doc.id}`}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-center w-8 h-8 rounded bg-muted flex-shrink-0">
+                            <FileText className="w-4 h-4 text-muted-foreground" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate max-w-[180px]" data-testid={`doc-name-${doc.id}`}>
+                              {doc.fileName}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {doc.wordCount ? `${doc.wordCount.toLocaleString()} words` : ""}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 mt-2 flex-wrap">
-                          {doc.checks?.ai && (
-                            <Badge 
-                              variant="outline" 
-                              className="bg-purple-500/10 text-purple-600 border-purple-200"
-                              data-testid={`badge-ai-${doc.id}`}
-                            >
-                              <Bot className="w-3 h-3 mr-1" />
-                              AI Check: {doc.checks.ai.score?.toFixed(0) || 0}%
-                            </Badge>
-                          )}
-                          {doc.checks?.plagiarism && (
-                            <Badge 
-                              variant="outline" 
-                              className="bg-orange-500/10 text-orange-600 border-orange-200"
-                              data-testid={`badge-plagiarism-${doc.id}`}
-                            >
-                              <Search className="w-3 h-3 mr-1" />
-                              Plagiarism: {doc.checks.plagiarism.score?.toFixed(0) || 0}%
-                            </Badge>
-                          )}
-                          {doc.checks?.grammar && (
-                            <Badge 
-                              variant="outline" 
-                              className="bg-blue-500/10 text-blue-600 border-blue-200"
-                              data-testid={`badge-grammar-${doc.id}`}
-                            >
-                              <SpellCheck className="w-3 h-3 mr-1" />
-                              Grammar: {doc.checks.grammar.totalMistakes} errors
-                            </Badge>
-                          )}
-                          {!doc.checks?.ai && !doc.checks?.plagiarism && !doc.checks?.grammar && (
-                            <span className="text-xs text-muted-foreground italic">No checks performed yet</span>
-                          )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <p>{format(new Date(doc.createdAt), "MMM d, yyyy")}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(doc.createdAt), "h:mm a")}
+                          </p>
                         </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      {badge}
-                      {action === "view" && (
-                        <>
-                          <Button size="sm" asChild data-testid={`button-view-${doc.id}`}>
-                            <Link href={`/report/${doc.id}`}>
-                              <Eye className="w-4 h-4 mr-1" />
-                              Report
-                            </Link>
-                          </Button>
-                          <Button size="sm" variant="outline" asChild data-testid={`button-grammar-${doc.id}`}>
-                            <Link href={`/grammar/${doc.id}`}>
-                              <SpellCheck className="w-4 h-4 mr-1" />
-                              Grammar
-                            </Link>
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            onClick={() => handleDownloadCorrected(doc.id, doc.fileName)}
-                            data-testid={`button-download-${doc.id}`}
-                          >
-                            <Download className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
-                      {action === "scan" && (
-                        <Button
-                          size="sm"
-                          onClick={() => scanMutation.mutate(doc.id)}
-                          disabled={scanMutation.isPending}
-                          data-testid={`button-scan-${doc.id}`}
-                        >
-                          <Play className="w-4 h-4 mr-1" />
-                          Scan
-                        </Button>
-                      )}
-                      {action === "retry" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => scanMutation.mutate(doc.id)}
-                          disabled={scanMutation.isPending}
-                          data-testid={`button-retry-${doc.id}`}
-                        >
-                          <RefreshCw className="w-4 h-4 mr-1" />
-                          Retry
-                        </Button>
-                      )}
-                      {action === "wait" && (
-                        <Button size="sm" disabled>
-                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                          Processing
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {doc.checks?.ai ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <span className={`font-medium ${
+                              doc.checks.ai.score >= 50 ? "text-red-600" : 
+                              doc.checks.ai.score >= 20 ? "text-orange-600" : "text-green-600"
+                            }`}>
+                              {doc.checks.ai.score?.toFixed(0) || 0}%
+                            </span>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6"
+                              onClick={() => handleDownloadReport(doc.id, doc.fileName, "ai")}
+                              data-testid={`download-ai-${doc.id}`}
+                            >
+                              <Download className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {doc.checks?.plagiarism ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <span className={`font-medium ${
+                              doc.checks.plagiarism.score >= 30 ? "text-red-600" : 
+                              doc.checks.plagiarism.score >= 10 ? "text-orange-600" : "text-green-600"
+                            }`}>
+                              {doc.checks.plagiarism.score?.toFixed(0) || 0}%
+                            </span>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6"
+                              onClick={() => handleDownloadReport(doc.id, doc.fileName, "plagiarism")}
+                              data-testid={`download-plagiarism-${doc.id}`}
+                            >
+                              <Download className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {doc.checks?.grammar ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <span className={`font-medium ${
+                              doc.checks.grammar.totalMistakes >= 20 ? "text-red-600" : 
+                              doc.checks.grammar.totalMistakes >= 5 ? "text-orange-600" : "text-green-600"
+                            }`}>
+                              {doc.checks.grammar.totalMistakes} errors
+                            </span>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6"
+                              onClick={() => handleDownloadReport(doc.id, doc.fileName, "grammar")}
+                              data-testid={`download-grammar-${doc.id}`}
+                            >
+                              <Download className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>
