@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -110,9 +110,11 @@ export default function PlagiarismCheck() {
     },
   });
 
-  if (data?.plagiarismResult?.status === "completed" && isPolling) {
-    setIsPolling(false);
-  }
+  useEffect(() => {
+    if (data?.plagiarismResult?.status === "completed" && isPolling) {
+      setIsPolling(false);
+    }
+  }, [data?.plagiarismResult?.status, isPolling]);
 
   const handleFileSelect = useCallback((files: FileList | null) => {
     if (!files || files.length === 0) return;

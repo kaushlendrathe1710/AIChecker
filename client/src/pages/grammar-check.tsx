@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -151,9 +151,11 @@ export default function GrammarCheck() {
     },
   });
 
-  if (data?.grammarResult && isPolling) {
-    setIsPolling(false);
-  }
+  useEffect(() => {
+    if (data?.grammarResult && isPolling) {
+      setIsPolling(false);
+    }
+  }, [data?.grammarResult, isPolling]);
 
   const handleFileSelect = useCallback((files: FileList | null) => {
     if (!files || files.length === 0) return;
