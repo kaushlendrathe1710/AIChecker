@@ -24,7 +24,6 @@ import {
 import {
   LayoutDashboard,
   FileText,
-  History,
   Settings,
   LogOut,
   Shield,
@@ -45,7 +44,6 @@ const menuItems = [
   { title: "Grammar Check", url: "/grammar-check", icon: SpellCheck },
   { title: "File Converter", url: "/file-converter", icon: FileOutput },
   { title: "Documents", url: "/documents", icon: FileText },
-  { title: "History", url: "/history", icon: History },
   { title: "Subscription", url: "/subscription", icon: CreditCard },
 ];
 

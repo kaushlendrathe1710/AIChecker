@@ -16,7 +16,6 @@ import DashboardPage from "@/pages/dashboard";
 import UploadPage from "@/pages/upload";
 import DocumentsPage from "@/pages/documents";
 import ReportPage from "@/pages/report";
-import HistoryPage from "@/pages/history";
 import AiCheckPage from "@/pages/ai-check";
 import PlagiarismCheckPage from "@/pages/plagiarism-check";
 import GrammarCheckPage from "@/pages/grammar-check";
@@ -184,15 +183,6 @@ function AppRouter() {
           component={() => (
             <DashboardLayout>
               <ReportPage />
-            </DashboardLayout>
-          )}
-        />
-      </Route>
-      <Route path="/history">
-        <ProtectedRoute
-          component={() => (
-            <DashboardLayout>
-              <HistoryPage />
             </DashboardLayout>
           )}
         />
