@@ -6,8 +6,12 @@ import {
   type ScanResult, type InsertScanResult,
   type SourceMatch, type InsertSourceMatch,
   type GrammarResult, type InsertGrammarResult,
+  type AiCheckResult, type InsertAiCheckResult,
+  type PlagiarismCheckResult, type InsertPlagiarismCheckResult,
+  type PlagiarismMatch, type InsertPlagiarismMatch,
   type SubscriptionPlan, type InsertSubscriptionPlan,
-  users, otpCodes, sessions, documents, scanResults, sourceMatches, grammarResults, subscriptionPlans
+  users, otpCodes, sessions, documents, scanResults, sourceMatches, grammarResults,
+  aiCheckResults, plagiarismCheckResults, plagiarismMatches, subscriptionPlans
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gt, count, ne } from "drizzle-orm";
@@ -41,6 +45,17 @@ export interface IStorage {
   
   createGrammarResult(result: InsertGrammarResult): Promise<GrammarResult>;
   getGrammarResultByDocument(documentId: string): Promise<GrammarResult | undefined>;
+  
+  createAiCheckResult(result: InsertAiCheckResult): Promise<AiCheckResult>;
+  getAiCheckResultByDocument(documentId: string): Promise<AiCheckResult | undefined>;
+  updateAiCheckResult(id: string, data: Partial<AiCheckResult>): Promise<AiCheckResult | undefined>;
+  
+  createPlagiarismCheckResult(result: InsertPlagiarismCheckResult): Promise<PlagiarismCheckResult>;
+  getPlagiarismCheckResultByDocument(documentId: string): Promise<PlagiarismCheckResult | undefined>;
+  updatePlagiarismCheckResult(id: string, data: Partial<PlagiarismCheckResult>): Promise<PlagiarismCheckResult | undefined>;
+  
+  createPlagiarismMatch(match: InsertPlagiarismMatch): Promise<PlagiarismMatch>;
+  getPlagiarismMatchesByResult(plagiarismResultId: string): Promise<PlagiarismMatch[]>;
   
   getUserStats(userId: string): Promise<{ totalScans: number; avgScore: number; lastScan: Date | null }>;
   
@@ -195,6 +210,49 @@ export class DatabaseStorage implements IStorage {
       .where(eq(grammarResults.documentId, documentId))
       .orderBy(desc(grammarResults.createdAt));
     return result;
+  }
+
+  async createAiCheckResult(result: InsertAiCheckResult): Promise<AiCheckResult> {
+    const [newResult] = await db.insert(aiCheckResults).values(result).returning();
+    return newResult;
+  }
+
+  async getAiCheckResultByDocument(documentId: string): Promise<AiCheckResult | undefined> {
+    const [result] = await db.select().from(aiCheckResults)
+      .where(eq(aiCheckResults.documentId, documentId))
+      .orderBy(desc(aiCheckResults.createdAt));
+    return result;
+  }
+
+  async updateAiCheckResult(id: string, data: Partial<AiCheckResult>): Promise<AiCheckResult | undefined> {
+    const [updated] = await db.update(aiCheckResults).set(data).where(eq(aiCheckResults.id, id)).returning();
+    return updated;
+  }
+
+  async createPlagiarismCheckResult(result: InsertPlagiarismCheckResult): Promise<PlagiarismCheckResult> {
+    const [newResult] = await db.insert(plagiarismCheckResults).values(result).returning();
+    return newResult;
+  }
+
+  async getPlagiarismCheckResultByDocument(documentId: string): Promise<PlagiarismCheckResult | undefined> {
+    const [result] = await db.select().from(plagiarismCheckResults)
+      .where(eq(plagiarismCheckResults.documentId, documentId))
+      .orderBy(desc(plagiarismCheckResults.createdAt));
+    return result;
+  }
+
+  async updatePlagiarismCheckResult(id: string, data: Partial<PlagiarismCheckResult>): Promise<PlagiarismCheckResult | undefined> {
+    const [updated] = await db.update(plagiarismCheckResults).set(data).where(eq(plagiarismCheckResults.id, id)).returning();
+    return updated;
+  }
+
+  async createPlagiarismMatch(match: InsertPlagiarismMatch): Promise<PlagiarismMatch> {
+    const [newMatch] = await db.insert(plagiarismMatches).values(match).returning();
+    return newMatch;
+  }
+
+  async getPlagiarismMatchesByResult(plagiarismResultId: string): Promise<PlagiarismMatch[]> {
+    return db.select().from(plagiarismMatches).where(eq(plagiarismMatches.plagiarismResultId, plagiarismResultId));
   }
 
   async getUserStats(userId: string): Promise<{ totalScans: number; avgScore: number; lastScan: Date | null }> {

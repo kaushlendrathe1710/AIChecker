@@ -88,6 +88,42 @@ export const grammarResults = pgTable("grammar_results", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const aiCheckResults = pgTable("ai_check_results", {
+  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  documentId: varchar("document_id", { length: 36 }).notNull().references(() => documents.id),
+  aiScore: real("ai_score").notNull(),
+  verdict: text("verdict").notNull(),
+  analysis: text("analysis"),
+  highlightedSections: jsonb("highlighted_sections"),
+  scanDuration: integer("scan_duration"),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const plagiarismCheckResults = pgTable("plagiarism_check_results", {
+  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  documentId: varchar("document_id", { length: 36 }).notNull().references(() => documents.id),
+  plagiarismScore: real("plagiarism_score").notNull(),
+  verdict: text("verdict").notNull(),
+  summary: text("summary"),
+  highlightedSections: jsonb("highlighted_sections"),
+  scanDuration: integer("scan_duration"),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const plagiarismMatches = pgTable("plagiarism_matches", {
+  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  plagiarismResultId: varchar("plagiarism_result_id", { length: 36 }).notNull().references(() => plagiarismCheckResults.id),
+  sourceUrl: text("source_url"),
+  sourceTitle: text("source_title"),
+  matchedText: text("matched_text").notNull(),
+  originalText: text("original_text").notNull(),
+  similarityScore: real("similarity_score").notNull(),
+  startIndex: integer("start_index").notNull(),
+  endIndex: integer("end_index").notNull(),
+});
+
 export const subscriptionPlans = pgTable("subscription_plans", {
   id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
@@ -151,6 +187,20 @@ export const insertGrammarResultSchema = createInsertSchema(grammarResults).omit
   createdAt: true,
 });
 
+export const insertAiCheckResultSchema = createInsertSchema(aiCheckResults).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPlagiarismCheckResultSchema = createInsertSchema(plagiarismCheckResults).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPlagiarismMatchSchema = createInsertSchema(plagiarismMatches).omit({
+  id: true,
+});
+
 export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans).omit({
   id: true,
   createdAt: true,
@@ -176,6 +226,15 @@ export type SourceMatch = typeof sourceMatches.$inferSelect;
 
 export type InsertGrammarResult = z.infer<typeof insertGrammarResultSchema>;
 export type GrammarResult = typeof grammarResults.$inferSelect;
+
+export type InsertAiCheckResult = z.infer<typeof insertAiCheckResultSchema>;
+export type AiCheckResult = typeof aiCheckResults.$inferSelect;
+
+export type InsertPlagiarismCheckResult = z.infer<typeof insertPlagiarismCheckResultSchema>;
+export type PlagiarismCheckResult = typeof plagiarismCheckResults.$inferSelect;
+
+export type InsertPlagiarismMatch = z.infer<typeof insertPlagiarismMatchSchema>;
+export type PlagiarismMatch = typeof plagiarismMatches.$inferSelect;
 
 export type InsertSubscriptionPlan = z.infer<typeof insertSubscriptionPlanSchema>;
 export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
@@ -221,4 +280,30 @@ export type GrammarMistake = {
 
 export type GrammarResultWithDocument = GrammarResult & {
   document: Document;
+};
+
+export type AiCheckResultWithDocument = AiCheckResult & {
+  document: Document;
+};
+
+export type PlagiarismCheckResultWithDocument = PlagiarismCheckResult & {
+  document: Document;
+  matches: PlagiarismMatch[];
+};
+
+export type AiHighlightedSection = {
+  text: string;
+  startIndex: number;
+  endIndex: number;
+  aiProbability: number;
+  reason: string;
+};
+
+export type PlagiarismHighlightedSection = {
+  text: string;
+  startIndex: number;
+  endIndex: number;
+  similarityScore: number;
+  sourceUrl?: string;
+  sourceTitle?: string;
 };
