@@ -32,88 +32,182 @@ function getVerdict(score: number): "original" | "low" | "moderate" | "high" {
   return "high";
 }
 
-export async function scanForPlagiarism(text: string): Promise<PlagiarismScanResult> {
-  const sentences = splitIntoSentences(text);
-  const sampleSentences = sentences.slice(0, 20);
-  const matches: PlagiarismMatch[] = [];
-
-  try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: `You are an expert plagiarism detection assistant with extensive knowledge of common academic and online content. Analyze each sentence for potential plagiarism.
-
-DETECTION CRITERIA:
-1. EXACT MATCHES: Sentences that are verbatim copies from known sources
-2. PARAPHRASED CONTENT: Text that closely mirrors known content with minor word changes
-3. COMMON KNOWLEDGE: Widely known facts that don't require citation
-4. UNIQUE CONTENT: Original writing with personal voice
-
-ANALYSIS APPROACH:
-- Check if the sentence structure/phrasing matches known patterns from textbooks, Wikipedia, academic papers
-- Identify distinctive phrases that commonly appear in online sources
-- Consider if the content is too polished or formulaic for student writing
-- Look for technical definitions that are commonly copied verbatim
-
-SCORING GUIDELINES:
-- 0-30: Original content or common knowledge (no citation needed)
-- 31-50: Possibly inspired by sources but adequately paraphrased
-- 51-70: Likely paraphrased from sources without proper citation
-- 71-90: Strongly resembles known content, probable plagiarism
-- 91-100: Near-verbatim match to known sources
-
-For each sentence, respond with a JSON object:
-{
-  "sentences": [
-    {
-      "original": "the exact sentence analyzed",
-      "likelyCopied": boolean,
-      "confidence": number (0-100),
-      "potentialSource": "specific source type (e.g., 'Wikipedia article on X', 'Common textbook definition', 'Academic paper pattern') or null",
-      "reason": "specific explanation of why this appears copied or original"
-    }
-  ],
-  "overallSummary": "Brief summary of the plagiarism analysis findings"
+function sampleSentences(sentences: string[], maxSamples: number = 30): string[] {
+  if (sentences.length <= maxSamples) {
+    return sentences;
+  }
+  
+  const result: string[] = [];
+  const step = Math.floor(sentences.length / maxSamples);
+  
+  for (let i = 0; i < sentences.length && result.length < maxSamples; i += step) {
+    result.push(sentences[i]);
+  }
+  
+  return result;
 }
 
-Be thorough but accurate. Avoid false positives for common phrases that naturally occur in writing.`
-        },
-        {
-          role: "user",
-          content: `Analyze these sentences for potential plagiarism:\n\n${sampleSentences.map((s, i) => `${i + 1}. "${s}"`).join("\n")}`
-        }
-      ],
-      max_completion_tokens: 2000,
-    });
+function tryParseJSON(content: string): any | null {
+  const cleaned = content
+    .replace(/```json\n?/g, "")
+    .replace(/\n?```/g, "")
+    .trim();
+  
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        return JSON.parse(jsonMatch[0]);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+}
 
-    const content = response.choices[0]?.message?.content || '{"sentences": [], "overallSummary": "Analysis failed"}';
-    const cleanedContent = content.replace(/```json\n?|\n?```/g, "").trim();
-    const parsed = JSON.parse(cleanedContent);
+export async function scanForPlagiarism(text: string): Promise<PlagiarismScanResult> {
+  const sentences = splitIntoSentences(text);
+  const sampledSentences = sampleSentences(sentences, 30);
+  const matches: PlagiarismMatch[] = [];
+
+  console.log(`[PLAGIARISM] Analyzing ${sampledSentences.length} sentences from ${sentences.length} total`);
+
+  const analyzeWithRetry = async (attempt: number = 1): Promise<any> => {
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert academic plagiarism detector. Your job is to identify content that students copied from educational sources.
+
+IMPORTANT CONTEXT: Students often copy content from:
+- Textbooks and course materials
+- Wikipedia and online encyclopedias  
+- Academic papers and journals
+- Other students' assignments
+- Online essay banks and homework help sites
+
+BE STRICT AND THOROUGH. Academic assignments that sound "too perfect" or "too polished" are often plagiarized.
+
+HIGH PLAGIARISM INDICATORS (score 70-100):
+- Standard textbook definitions and explanations
+- Formal academic language without personal voice
+- Explanations of concepts that match common educational sources
+- Sequential logical arguments that follow standard patterns
+- Technical terminology used in standard academic ways
+- Content about well-known topics (economics, history, science) that sounds encyclopedic
+
+MODERATE PLAGIARISM INDICATORS (score 40-70):
+- Paraphrased versions of common explanations
+- Structural patterns that match educational templates
+- Examples that commonly appear in textbooks
+
+LOW/ORIGINAL INDICATORS (score 0-40):
+- Personal opinions and unique perspectives
+- Informal language and personal voice
+- Original examples from personal experience
+- Creative or unconventional explanations
+
+For the totalScore, calculate the AVERAGE score across all sentences.
+If most content appears copied from educational sources, totalScore should be 70-100.
+
+Respond with ONLY valid JSON:
+{"sentences":[{"text":"sentence","score":number,"copied":boolean,"source":"source type"}],"totalScore":number}`
+          },
+          {
+            role: "user",
+            content: `Analyze these sentences from a student assignment for plagiarism:\n\n${sampledSentences.map((s, i) => `${i + 1}. ${s}`).join("\n")}`
+          }
+        ],
+        max_completion_tokens: 3000,
+      });
+
+      const content = response.choices[0]?.message?.content || "";
+      console.log(`[PLAGIARISM] Raw response length: ${content.length}`);
+      
+      const parsed = tryParseJSON(content);
+      if (!parsed || !parsed.sentences) {
+        console.error(`[PLAGIARISM] Failed to parse JSON on attempt ${attempt}:`, content.substring(0, 200));
+        if (attempt < 2) {
+          console.log(`[PLAGIARISM] Retrying...`);
+          return analyzeWithRetry(attempt + 1);
+        }
+        return null;
+      }
+      
+      return parsed;
+    } catch (error) {
+      console.error(`[PLAGIARISM] API error on attempt ${attempt}:`, error);
+      if (attempt < 2) {
+        return analyzeWithRetry(attempt + 1);
+      }
+      throw error;
+    }
+  };
+
+  try {
+    const parsed = await analyzeWithRetry();
+    
+    if (!parsed) {
+      return {
+        plagiarismScore: 0,
+        verdict: "original",
+        summary: "Unable to complete plagiarism analysis. Please try again.",
+        highlightedSections: [],
+        matches: [],
+      };
+    }
+    
+    let totalScore = 0;
+    let scoredCount = 0;
     
     for (const item of parsed.sentences || []) {
-      if (item.likelyCopied && item.confidence > 45) {
-        const startIndex = text.indexOf(item.original);
-        if (startIndex >= 0) {
+      const score = typeof item.score === 'number' ? item.score : 0;
+      const isCopied = item.copied === true || score > 50;
+      
+      totalScore += score;
+      scoredCount++;
+      
+      if (isCopied && score > 40) {
+        const sentenceText = item.text || item.original || "";
+        const startIndex = text.indexOf(sentenceText);
+        
+        if (startIndex >= 0 || sentenceText.length > 20) {
           matches.push({
             sourceUrl: null,
-            sourceTitle: item.potentialSource || "Potential external source",
-            matchedText: item.original,
-            originalText: item.original,
-            similarityScore: item.confidence,
-            startIndex,
-            endIndex: startIndex + item.original.length,
+            sourceTitle: item.source || "Educational/Online Source",
+            matchedText: sentenceText,
+            originalText: sentenceText,
+            similarityScore: score,
+            startIndex: startIndex >= 0 ? startIndex : 0,
+            endIndex: startIndex >= 0 ? startIndex + sentenceText.length : sentenceText.length,
           });
         }
       }
     }
 
-    const avgScore = matches.length > 0
-      ? matches.reduce((sum, m) => sum + m.similarityScore, 0) / matches.length
-      : 0;
-
-    const plagiarismScore = Math.min(100, avgScore * (matches.length / Math.max(1, sampleSentences.length)) * 2);
+    const avgScore = scoredCount > 0 ? totalScore / scoredCount : 0;
+    const matchRatio = matches.length / Math.max(1, sampledSentences.length);
+    
+    let rawScore: number;
+    if (parsed.totalScore !== undefined && parsed.totalScore <= 100) {
+      rawScore = parsed.totalScore;
+    } else {
+      rawScore = avgScore;
+    }
+    
+    if (matchRatio > 0.6) {
+      rawScore = Math.max(rawScore, 75 + matchRatio * 25);
+    } else if (matchRatio > 0.4) {
+      rawScore = Math.max(rawScore, 50 + matchRatio * 50);
+    }
+    
+    const plagiarismScore = Math.min(100, Math.max(0, Math.round(rawScore)));
+    
     const verdict = getVerdict(plagiarismScore);
 
     const highlightedSections: PlagiarismHighlightedSection[] = matches.map(m => ({
@@ -125,16 +219,18 @@ Be thorough but accurate. Avoid false positives for common phrases that naturall
       sourceTitle: m.sourceTitle || undefined,
     }));
 
-    let summary = parsed.overallSummary || "";
-    if (!summary) {
-      if (matches.length === 0) {
-        summary = "No significant plagiarism detected. The content appears to be original.";
-      } else if (matches.length <= 2) {
-        summary = `Found ${matches.length} potential match(es) that may need citation. Review the highlighted sections.`;
-      } else {
-        summary = `Found ${matches.length} potential matches. Several sections may require proper citation or rewriting.`;
-      }
+    let summary = "";
+    if (matches.length === 0) {
+      summary = "No significant plagiarism detected. The content appears to be original.";
+    } else if (plagiarismScore < 30) {
+      summary = `Found ${matches.length} section(s) that may benefit from citations. Overall originality is acceptable.`;
+    } else if (plagiarismScore < 50) {
+      summary = `Found ${matches.length} section(s) matching common sources. Consider adding citations or rewriting these sections.`;
+    } else {
+      summary = `High similarity detected in ${matches.length} section(s). This content appears to match educational sources and requires significant revision.`;
     }
+
+    console.log(`[PLAGIARISM] Final score: ${plagiarismScore}%, verdict: ${verdict}, matches: ${matches.length}`);
 
     return {
       plagiarismScore,
@@ -144,7 +240,7 @@ Be thorough but accurate. Avoid false positives for common phrases that naturall
       matches,
     };
   } catch (error) {
-    console.error("Plagiarism check error:", error);
+    console.error("[PLAGIARISM] Scan failed:", error);
     return {
       plagiarismScore: 0,
       verdict: "original",
