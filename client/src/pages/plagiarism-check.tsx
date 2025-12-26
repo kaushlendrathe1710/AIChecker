@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Loader2,
 } from "lucide-react";
+import { HighlightedDocument } from "@/components/highlighted-document";
 import type { Document, PlagiarismCheckResult, PlagiarismMatch } from "@shared/schema";
 
 interface PlagiarismCheckResponse {
@@ -347,6 +348,21 @@ export default function PlagiarismCheck() {
               </div>
             </CardContent>
           </Card>
+
+          {data.document.extractedText && data.matches && data.matches.length > 0 && (
+            <HighlightedDocument
+              text={data.document.extractedText}
+              sections={data.matches.map(m => ({
+                text: m.matchedText,
+                startIndex: m.startIndex || -1,
+                endIndex: m.endIndex || -1,
+                similarityScore: m.similarityScore,
+                reason: m.sourceTitle || "Potential match detected",
+              }))}
+              type="plagiarism"
+              title="Document with Copied Content Highlighted"
+            />
+          )}
 
           {data.matches && data.matches.length > 0 && (
             <Card>

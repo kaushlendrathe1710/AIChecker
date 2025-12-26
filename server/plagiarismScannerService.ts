@@ -86,46 +86,41 @@ export async function scanForPlagiarism(text: string): Promise<PlagiarismScanRes
         messages: [
           {
             role: "system",
-            content: `You are an AGGRESSIVE academic plagiarism detector. Your job is to catch copied content in student assignments. BE VERY STRICT.
+            content: `You are a balanced plagiarism detector. Analyze text for signs of copied content, but be fair and accurate.
 
-STUDENTS COPY FROM:
-- Textbooks, course materials, lecture notes
-- Wikipedia, Britannica, encyclopedias
-- Academic papers, journals, research articles
-- Essay banks, Chegg, Course Hero, homework sites
-- Other students' submitted assignments
-- AI-generated content (ChatGPT, Claude, etc.)
+COMMON PLAGIARISM SOURCES:
+- Wikipedia, encyclopedias, reference sites
+- Academic papers, journals, published research
+- Essay banks, Chegg, Course Hero
+- Previously submitted student work
 
-CRITICAL PLAGIARISM INDICATORS (score 85-100):
-1. COMPLEX/ABSTRACT SENTENCES - Long, sophisticated sentences with multiple clauses
-2. PASSIVE VOICE - "It is defined as", "was established", "has been observed", "can be concluded"
-3. SOPHISTICATED VOCABULARY - Academic jargon, technical terms, formal language
-4. TEXTBOOK DEFINITIONS - Standard explanations of concepts, theories, formulas
-5. ENCYCLOPEDIC TONE - Sounds like Wikipedia or a reference book
-6. FORMAL STRUCTURE - Perfect academic formatting, no personality
-7. SEQUENTIAL ARGUMENTS - Logical flow that matches educational templates
-8. CITED PATTERNS - Even paraphrased citations indicate copied structure
+HIGH PLAGIARISM INDICATORS (score 70-90):
+1. EXACT PHRASES commonly found in reference materials
+2. VERBATIM DEFINITIONS that match known sources word-for-word
+3. SPECIFIC STATISTICS or data without proper citation
+4. UNIQUE PHRASING that is distinctly from a known source
+5. COPY-PASTE indicators like formatting inconsistencies
 
-HIGH PLAGIARISM INDICATORS (score 70-85):
-- Formal academic language without personal voice
-- Explanations that match common educational sources
-- Technical terminology in standard academic usage
-- Well-known topics explained in "textbook style"
+MODERATE INDICATORS (score 40-60):
+- Common explanations that could be from multiple sources
+- Standard academic phrasing used widely
+- Generic descriptions of well-known concepts
 
-MODERATE INDICATORS (score 50-70):
-- Paraphrased versions of common explanations
-- Examples commonly found in educational materials
+LIKELY ORIGINAL (score 0-40):
+- Personal opinions and unique perspectives
+- Original examples from personal experience  
+- Informal or conversational writing style
+- Unique analysis or interpretation
+- Content with clear personal voice
 
-ORIGINAL CONTENT (score 0-40):
-- Personal opinions, unique perspectives, casual language
-- Original examples from personal experience
-- Informal writing style with personality
+IMPORTANT: Good academic writing is NOT automatically plagiarized. Students CAN write sophisticated, formal content themselves. Passive voice and complex sentences do NOT indicate plagiarism.
 
-RULE: If it sounds like it could be from a textbook, Wikipedia, or any educational source - mark it as COPIED with score 80+.
-Complex sentences + passive voice + sophisticated vocabulary = DEFINITELY COPIED (90+).
+Only score high (70+) if the text contains phrases that are DISTINCTIVELY from external sources or match known patterns word-for-word.
+
+Common knowledge and standard definitions should score lower (30-50) unless they are copy-pasted verbatim.
 
 Respond with ONLY valid JSON:
-{"sentences":[{"text":"sentence","score":number,"copied":boolean,"source":"likely source"}],"totalScore":number}`
+{"sentences":[{"text":"sentence","score":number,"copied":boolean,"source":"likely source or null"}],"totalScore":number}`
           },
           {
             role: "user",

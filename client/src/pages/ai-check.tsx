@@ -19,6 +19,7 @@ import {
   Clock,
   Loader2,
 } from "lucide-react";
+import { HighlightedDocument } from "@/components/highlighted-document";
 import type { Document, AiCheckResult } from "@shared/schema";
 
 interface AiCheckResponse {
@@ -341,6 +342,21 @@ export default function AiCheck() {
               </div>
             </CardContent>
           </Card>
+
+          {data.document.extractedText && (data.aiResult.highlightedSections as any[])?.length > 0 && (
+            <HighlightedDocument
+              text={data.document.extractedText}
+              sections={(data.aiResult.highlightedSections as any[]).map(s => ({
+                text: s.text,
+                startIndex: s.startIndex || -1,
+                endIndex: s.endIndex || -1,
+                aiProbability: s.aiProbability,
+                reason: s.reason,
+              }))}
+              type="ai"
+              title="Document with AI-Generated Content Highlighted"
+            />
+          )}
 
           {(data.aiResult.highlightedSections as any[])?.length > 0 && (
             <Card>
