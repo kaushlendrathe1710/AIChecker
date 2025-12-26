@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   LayoutDashboard,
-  Upload,
   FileText,
   History,
   Settings,
@@ -34,13 +33,16 @@ import {
   SpellCheck,
   Crown,
   CreditCard,
+  Bot,
+  Search,
 } from "lucide-react";
 
 const menuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "New Scan", url: "/upload", icon: Upload },
+  { title: "AI Check", url: "/ai-check", icon: Bot },
+  { title: "Plagiarism Check", url: "/plagiarism-check", icon: Search },
+  { title: "Grammar Check", url: "/grammar-check", icon: SpellCheck },
   { title: "Documents", url: "/documents", icon: FileText },
-  { title: "Grammar Check", url: "/grammar", icon: SpellCheck },
   { title: "History", url: "/history", icon: History },
   { title: "Subscription", url: "/subscription", icon: CreditCard },
 ];

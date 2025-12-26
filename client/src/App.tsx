@@ -17,6 +17,8 @@ import UploadPage from "@/pages/upload";
 import DocumentsPage from "@/pages/documents";
 import ReportPage from "@/pages/report";
 import HistoryPage from "@/pages/history";
+import AiCheckPage from "@/pages/ai-check";
+import PlagiarismCheckPage from "@/pages/plagiarism-check";
 import GrammarCheckPage from "@/pages/grammar-check";
 import SubscriptionPage from "@/pages/subscription";
 import AdminDashboard from "@/pages/admin/dashboard";
@@ -194,16 +196,25 @@ function AppRouter() {
           )}
         />
       </Route>
-      <Route path="/grammar">
+      <Route path="/ai-check">
         <ProtectedRoute
           component={() => (
             <DashboardLayout>
-              <DocumentsPage />
+              <AiCheckPage />
             </DashboardLayout>
           )}
         />
       </Route>
-      <Route path="/grammar/:id">
+      <Route path="/plagiarism-check">
+        <ProtectedRoute
+          component={() => (
+            <DashboardLayout>
+              <PlagiarismCheckPage />
+            </DashboardLayout>
+          )}
+        />
+      </Route>
+      <Route path="/grammar-check">
         <ProtectedRoute
           component={() => (
             <DashboardLayout>
