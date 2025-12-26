@@ -1,7 +1,7 @@
 export interface SlideTemplate {
   id: string;
   name: string;
-  category: "title" | "content" | "image" | "twoColumn" | "quote" | "team" | "closing" | "chart" | "bullets";
+  category: "title" | "content" | "image" | "twoColumn" | "quote" | "team" | "closing" | "chart" | "bullets" | "smartart" | "timeline" | "agenda";
   thumbnail: string;
   fields: SlideField[];
 }
@@ -35,6 +35,7 @@ export interface ThemeConfig {
 }
 
 export const slideTemplates: SlideTemplate[] = [
+  // ===== TITLE SLIDES =====
   {
     id: "title-centered",
     name: "Title - Centered",
@@ -69,6 +70,50 @@ export const slideTemplates: SlideTemplate[] = [
     ],
   },
   {
+    id: "title-section",
+    name: "Section Divider",
+    category: "title",
+    thumbnail: "/slides/title-section.png",
+    fields: [
+      { id: "sectionNumber", type: "text", label: "Section Number", placeholder: "01", maxLength: 10 },
+      { id: "title", type: "title", label: "Section Title", placeholder: "Introduction", required: true, maxLength: 50 },
+      { id: "description", type: "text", label: "Brief Description", placeholder: "What this section covers", maxLength: 100 },
+    ],
+  },
+
+  // ===== AGENDA/TABLE OF CONTENTS =====
+  {
+    id: "agenda-simple",
+    name: "Agenda - Simple",
+    category: "agenda",
+    thumbnail: "/slides/agenda-simple.png",
+    fields: [
+      { id: "heading", type: "title", label: "Heading", placeholder: "Today's Agenda", required: true, maxLength: 50 },
+      { id: "item1", type: "text", label: "Topic 1", placeholder: "Introduction", maxLength: 50 },
+      { id: "item2", type: "text", label: "Topic 2", placeholder: "Main Content", maxLength: 50 },
+      { id: "item3", type: "text", label: "Topic 3", placeholder: "Discussion", maxLength: 50 },
+      { id: "item4", type: "text", label: "Topic 4", placeholder: "Q&A", maxLength: 50 },
+      { id: "item5", type: "text", label: "Topic 5", placeholder: "Next Steps", maxLength: 50 },
+    ],
+  },
+  {
+    id: "agenda-numbered",
+    name: "Agenda - Numbered",
+    category: "agenda",
+    thumbnail: "/slides/agenda-numbered.png",
+    fields: [
+      { id: "heading", type: "title", label: "Heading", placeholder: "Outline", required: true, maxLength: 50 },
+      { id: "topic1", type: "text", label: "1. Topic", placeholder: "Background & Context", maxLength: 60 },
+      { id: "desc1", type: "text", label: "1. Description", placeholder: "Brief overview", maxLength: 80 },
+      { id: "topic2", type: "text", label: "2. Topic", placeholder: "Key Findings", maxLength: 60 },
+      { id: "desc2", type: "text", label: "2. Description", placeholder: "Research results", maxLength: 80 },
+      { id: "topic3", type: "text", label: "3. Topic", placeholder: "Recommendations", maxLength: 60 },
+      { id: "desc3", type: "text", label: "3. Description", placeholder: "Action items", maxLength: 80 },
+    ],
+  },
+
+  // ===== CONTENT SLIDES =====
+  {
     id: "content-basic",
     name: "Content - Basic",
     category: "content",
@@ -79,8 +124,33 @@ export const slideTemplates: SlideTemplate[] = [
     ],
   },
   {
+    id: "content-highlight",
+    name: "Content - Key Highlight",
+    category: "content",
+    thumbnail: "/slides/content-highlight.png",
+    fields: [
+      { id: "heading", type: "title", label: "Heading", placeholder: "Key Insight", required: true, maxLength: 60 },
+      { id: "highlight", type: "text", label: "Highlight Text", placeholder: "The main point to remember", required: true, maxLength: 100 },
+      { id: "explanation", type: "body", label: "Explanation", placeholder: "Supporting details...", maxLength: 300 },
+    ],
+  },
+  {
+    id: "content-icon-text",
+    name: "Content - Icon + Text",
+    category: "content",
+    thumbnail: "/slides/content-icon-text.png",
+    fields: [
+      { id: "heading", type: "title", label: "Heading", placeholder: "Feature Spotlight", required: true, maxLength: 60 },
+      { id: "icon", type: "text", label: "Icon Name", placeholder: "star, heart, check, rocket", maxLength: 30 },
+      { id: "subheading", type: "text", label: "Subheading", placeholder: "Feature Name", maxLength: 50 },
+      { id: "description", type: "body", label: "Description", placeholder: "Detailed explanation...", maxLength: 300 },
+    ],
+  },
+
+  // ===== BULLET/LIST SLIDES =====
+  {
     id: "content-bullets",
-    name: "Content - Bullet Points",
+    name: "Bullet Points",
     category: "bullets",
     thumbnail: "/slides/content-bullets.png",
     fields: [
@@ -94,7 +164,7 @@ export const slideTemplates: SlideTemplate[] = [
   },
   {
     id: "content-numbered",
-    name: "Content - Numbered List",
+    name: "Numbered List",
     category: "bullets",
     thumbnail: "/slides/content-numbered.png",
     fields: [
@@ -105,6 +175,188 @@ export const slideTemplates: SlideTemplate[] = [
       { id: "item4", type: "text", label: "Step 4", placeholder: "Fourth step (optional)", maxLength: 100 },
     ],
   },
+  {
+    id: "bullets-icons",
+    name: "Icon Bullets",
+    category: "bullets",
+    thumbnail: "/slides/bullets-icons.png",
+    fields: [
+      { id: "heading", type: "title", label: "Heading", placeholder: "Features", required: true, maxLength: 60 },
+      { id: "icon1", type: "text", label: "Icon 1", placeholder: "check", maxLength: 20 },
+      { id: "point1", type: "text", label: "Point 1", placeholder: "Easy to use interface", maxLength: 80 },
+      { id: "icon2", type: "text", label: "Icon 2", placeholder: "zap", maxLength: 20 },
+      { id: "point2", type: "text", label: "Point 2", placeholder: "Lightning fast performance", maxLength: 80 },
+      { id: "icon3", type: "text", label: "Icon 3", placeholder: "shield", maxLength: 20 },
+      { id: "point3", type: "text", label: "Point 3", placeholder: "Enterprise-grade security", maxLength: 80 },
+      { id: "icon4", type: "text", label: "Icon 4", placeholder: "heart", maxLength: 20 },
+      { id: "point4", type: "text", label: "Point 4", placeholder: "Customer satisfaction", maxLength: 80 },
+    ],
+  },
+  {
+    id: "keywords-cloud",
+    name: "Keywords Cloud",
+    category: "bullets",
+    thumbnail: "/slides/keywords-cloud.png",
+    fields: [
+      { id: "heading", type: "title", label: "Heading", placeholder: "Key Concepts", required: true, maxLength: 50 },
+      { id: "keyword1", type: "text", label: "Keyword 1 (Large)", placeholder: "Innovation", maxLength: 25 },
+      { id: "keyword2", type: "text", label: "Keyword 2 (Large)", placeholder: "Growth", maxLength: 25 },
+      { id: "keyword3", type: "text", label: "Keyword 3 (Medium)", placeholder: "Strategy", maxLength: 25 },
+      { id: "keyword4", type: "text", label: "Keyword 4 (Medium)", placeholder: "Success", maxLength: 25 },
+      { id: "keyword5", type: "text", label: "Keyword 5 (Small)", placeholder: "Leadership", maxLength: 25 },
+      { id: "keyword6", type: "text", label: "Keyword 6 (Small)", placeholder: "Vision", maxLength: 25 },
+      { id: "keyword7", type: "text", label: "Keyword 7 (Small)", placeholder: "Excellence", maxLength: 25 },
+      { id: "keyword8", type: "text", label: "Keyword 8 (Small)", placeholder: "Quality", maxLength: 25 },
+    ],
+  },
+
+  // ===== SMARTART SLIDES =====
+  {
+    id: "smartart-process",
+    name: "Process Flow (4 Steps)",
+    category: "smartart",
+    thumbnail: "/slides/smartart-process.png",
+    fields: [
+      { id: "heading", type: "title", label: "Heading", placeholder: "Our Process", required: true, maxLength: 50 },
+      { id: "step1Title", type: "text", label: "Step 1 Title", placeholder: "Research", maxLength: 20 },
+      { id: "step1Desc", type: "text", label: "Step 1 Description", placeholder: "Gather requirements", maxLength: 50 },
+      { id: "step2Title", type: "text", label: "Step 2 Title", placeholder: "Design", maxLength: 20 },
+      { id: "step2Desc", type: "text", label: "Step 2 Description", placeholder: "Create solutions", maxLength: 50 },
+      { id: "step3Title", type: "text", label: "Step 3 Title", placeholder: "Build", maxLength: 20 },
+      { id: "step3Desc", type: "text", label: "Step 3 Description", placeholder: "Develop product", maxLength: 50 },
+      { id: "step4Title", type: "text", label: "Step 4 Title", placeholder: "Launch", maxLength: 20 },
+      { id: "step4Desc", type: "text", label: "Step 4 Description", placeholder: "Go to market", maxLength: 50 },
+    ],
+  },
+  {
+    id: "smartart-cycle",
+    name: "Cycle Diagram",
+    category: "smartart",
+    thumbnail: "/slides/smartart-cycle.png",
+    fields: [
+      { id: "heading", type: "title", label: "Heading", placeholder: "Continuous Improvement", required: true, maxLength: 50 },
+      { id: "centerText", type: "text", label: "Center Text", placeholder: "Core Value", maxLength: 20 },
+      { id: "phase1", type: "text", label: "Phase 1", placeholder: "Plan", maxLength: 25 },
+      { id: "phase2", type: "text", label: "Phase 2", placeholder: "Do", maxLength: 25 },
+      { id: "phase3", type: "text", label: "Phase 3", placeholder: "Check", maxLength: 25 },
+      { id: "phase4", type: "text", label: "Phase 4", placeholder: "Act", maxLength: 25 },
+    ],
+  },
+  {
+    id: "smartart-pyramid",
+    name: "Pyramid Diagram",
+    category: "smartart",
+    thumbnail: "/slides/smartart-pyramid.png",
+    fields: [
+      { id: "heading", type: "title", label: "Heading", placeholder: "Priority Hierarchy", required: true, maxLength: 50 },
+      { id: "level1", type: "text", label: "Top Level", placeholder: "Vision", maxLength: 30 },
+      { id: "level1Desc", type: "text", label: "Top Description", placeholder: "Ultimate goal", maxLength: 50 },
+      { id: "level2", type: "text", label: "Middle Level", placeholder: "Strategy", maxLength: 30 },
+      { id: "level2Desc", type: "text", label: "Middle Description", placeholder: "How we get there", maxLength: 50 },
+      { id: "level3", type: "text", label: "Base Level", placeholder: "Tactics", maxLength: 30 },
+      { id: "level3Desc", type: "text", label: "Base Description", placeholder: "Daily actions", maxLength: 50 },
+    ],
+  },
+  {
+    id: "smartart-venn",
+    name: "Venn Diagram (3 Circles)",
+    category: "smartart",
+    thumbnail: "/slides/smartart-venn.png",
+    fields: [
+      { id: "heading", type: "title", label: "Heading", placeholder: "Overlap Analysis", required: true, maxLength: 50 },
+      { id: "circle1", type: "text", label: "Circle 1", placeholder: "Technology", maxLength: 25 },
+      { id: "circle2", type: "text", label: "Circle 2", placeholder: "Business", maxLength: 25 },
+      { id: "circle3", type: "text", label: "Circle 3", placeholder: "Design", maxLength: 25 },
+      { id: "center", type: "text", label: "Center (All 3)", placeholder: "Innovation", maxLength: 25 },
+    ],
+  },
+  {
+    id: "smartart-matrix",
+    name: "Matrix Grid (2x2)",
+    category: "smartart",
+    thumbnail: "/slides/smartart-matrix.png",
+    fields: [
+      { id: "heading", type: "title", label: "Heading", placeholder: "Decision Matrix", required: true, maxLength: 50 },
+      { id: "xAxisLabel", type: "text", label: "X-Axis Label", placeholder: "Impact", maxLength: 20 },
+      { id: "yAxisLabel", type: "text", label: "Y-Axis Label", placeholder: "Effort", maxLength: 20 },
+      { id: "quadrant1", type: "text", label: "Top-Left", placeholder: "Quick Wins", maxLength: 30 },
+      { id: "quadrant2", type: "text", label: "Top-Right", placeholder: "Major Projects", maxLength: 30 },
+      { id: "quadrant3", type: "text", label: "Bottom-Left", placeholder: "Fill-ins", maxLength: 30 },
+      { id: "quadrant4", type: "text", label: "Bottom-Right", placeholder: "Avoid", maxLength: 30 },
+    ],
+  },
+  {
+    id: "smartart-hierarchy",
+    name: "Org Chart (Hierarchy)",
+    category: "smartart",
+    thumbnail: "/slides/smartart-hierarchy.png",
+    fields: [
+      { id: "heading", type: "title", label: "Heading", placeholder: "Organization Structure", required: true, maxLength: 50 },
+      { id: "topTitle", type: "text", label: "Top Position", placeholder: "CEO", maxLength: 30 },
+      { id: "topName", type: "text", label: "Top Name", placeholder: "John Smith", maxLength: 30 },
+      { id: "left1Title", type: "text", label: "Left Position", placeholder: "CTO", maxLength: 25 },
+      { id: "left1Name", type: "text", label: "Left Name", placeholder: "Jane Doe", maxLength: 25 },
+      { id: "center1Title", type: "text", label: "Center Position", placeholder: "COO", maxLength: 25 },
+      { id: "center1Name", type: "text", label: "Center Name", placeholder: "Mike Johnson", maxLength: 25 },
+      { id: "right1Title", type: "text", label: "Right Position", placeholder: "CFO", maxLength: 25 },
+      { id: "right1Name", type: "text", label: "Right Name", placeholder: "Sarah Brown", maxLength: 25 },
+    ],
+  },
+  {
+    id: "smartart-funnel",
+    name: "Funnel Diagram",
+    category: "smartart",
+    thumbnail: "/slides/smartart-funnel.png",
+    fields: [
+      { id: "heading", type: "title", label: "Heading", placeholder: "Sales Funnel", required: true, maxLength: 50 },
+      { id: "stage1", type: "text", label: "Stage 1 (Widest)", placeholder: "Awareness", maxLength: 30 },
+      { id: "stage1Value", type: "text", label: "Stage 1 Value", placeholder: "10,000 visitors", maxLength: 30 },
+      { id: "stage2", type: "text", label: "Stage 2", placeholder: "Interest", maxLength: 30 },
+      { id: "stage2Value", type: "text", label: "Stage 2 Value", placeholder: "2,500 leads", maxLength: 30 },
+      { id: "stage3", type: "text", label: "Stage 3", placeholder: "Decision", maxLength: 30 },
+      { id: "stage3Value", type: "text", label: "Stage 3 Value", placeholder: "500 qualified", maxLength: 30 },
+      { id: "stage4", type: "text", label: "Stage 4 (Narrowest)", placeholder: "Action", maxLength: 30 },
+      { id: "stage4Value", type: "text", label: "Stage 4 Value", placeholder: "100 customers", maxLength: 30 },
+    ],
+  },
+
+  // ===== TIMELINE SLIDES =====
+  {
+    id: "timeline-horizontal",
+    name: "Timeline - Horizontal",
+    category: "timeline",
+    thumbnail: "/slides/timeline-horizontal.png",
+    fields: [
+      { id: "heading", type: "title", label: "Heading", placeholder: "Project Timeline", required: true, maxLength: 50 },
+      { id: "date1", type: "text", label: "Date 1", placeholder: "Jan 2024", maxLength: 20 },
+      { id: "event1", type: "text", label: "Event 1", placeholder: "Project Kickoff", maxLength: 40 },
+      { id: "date2", type: "text", label: "Date 2", placeholder: "Mar 2024", maxLength: 20 },
+      { id: "event2", type: "text", label: "Event 2", placeholder: "Phase 1 Complete", maxLength: 40 },
+      { id: "date3", type: "text", label: "Date 3", placeholder: "Jun 2024", maxLength: 20 },
+      { id: "event3", type: "text", label: "Event 3", placeholder: "Beta Launch", maxLength: 40 },
+      { id: "date4", type: "text", label: "Date 4", placeholder: "Sep 2024", maxLength: 20 },
+      { id: "event4", type: "text", label: "Event 4", placeholder: "Full Release", maxLength: 40 },
+    ],
+  },
+  {
+    id: "timeline-roadmap",
+    name: "Roadmap - Quarters",
+    category: "timeline",
+    thumbnail: "/slides/timeline-roadmap.png",
+    fields: [
+      { id: "heading", type: "title", label: "Heading", placeholder: "Product Roadmap 2024", required: true, maxLength: 50 },
+      { id: "q1Title", type: "text", label: "Q1 Focus", placeholder: "Foundation", maxLength: 30 },
+      { id: "q1Items", type: "body", label: "Q1 Deliverables", placeholder: "Core features, MVP launch", maxLength: 100 },
+      { id: "q2Title", type: "text", label: "Q2 Focus", placeholder: "Growth", maxLength: 30 },
+      { id: "q2Items", type: "body", label: "Q2 Deliverables", placeholder: "Marketing push, integrations", maxLength: 100 },
+      { id: "q3Title", type: "text", label: "Q3 Focus", placeholder: "Scale", maxLength: 30 },
+      { id: "q3Items", type: "body", label: "Q3 Deliverables", placeholder: "Enterprise features, expansion", maxLength: 100 },
+      { id: "q4Title", type: "text", label: "Q4 Focus", placeholder: "Optimize", maxLength: 30 },
+      { id: "q4Items", type: "body", label: "Q4 Deliverables", placeholder: "Performance, analytics", maxLength: 100 },
+    ],
+  },
+
+  // ===== TWO COLUMN SLIDES =====
   {
     id: "two-column",
     name: "Two Columns",
@@ -135,6 +387,44 @@ export const slideTemplates: SlideTemplate[] = [
       { id: "rightBullet3", type: "text", label: "Right Point 3", placeholder: "Third disadvantage", maxLength: 80 },
     ],
   },
+  {
+    id: "three-column",
+    name: "Three Columns",
+    category: "twoColumn",
+    thumbnail: "/slides/three-column.png",
+    fields: [
+      { id: "heading", type: "title", label: "Heading", placeholder: "Our Services", required: true, maxLength: 60 },
+      { id: "col1Icon", type: "text", label: "Column 1 Icon", placeholder: "star", maxLength: 20 },
+      { id: "col1Title", type: "text", label: "Column 1 Title", placeholder: "Basic", maxLength: 30 },
+      { id: "col1Content", type: "body", label: "Column 1 Content", placeholder: "Entry-level features", maxLength: 150 },
+      { id: "col2Icon", type: "text", label: "Column 2 Icon", placeholder: "zap", maxLength: 20 },
+      { id: "col2Title", type: "text", label: "Column 2 Title", placeholder: "Pro", maxLength: 30 },
+      { id: "col2Content", type: "body", label: "Column 2 Content", placeholder: "Advanced features", maxLength: 150 },
+      { id: "col3Icon", type: "text", label: "Column 3 Icon", placeholder: "crown", maxLength: 20 },
+      { id: "col3Title", type: "text", label: "Column 3 Title", placeholder: "Enterprise", maxLength: 30 },
+      { id: "col3Content", type: "body", label: "Column 3 Content", placeholder: "Full suite", maxLength: 150 },
+    ],
+  },
+  {
+    id: "comparison-table",
+    name: "Comparison Table",
+    category: "twoColumn",
+    thumbnail: "/slides/comparison-table.png",
+    fields: [
+      { id: "heading", type: "title", label: "Heading", placeholder: "Feature Comparison", required: true, maxLength: 50 },
+      { id: "feature1", type: "text", label: "Feature 1", placeholder: "Price", maxLength: 30 },
+      { id: "option1Val1", type: "text", label: "Option A - Feature 1", placeholder: "$99", maxLength: 20 },
+      { id: "option2Val1", type: "text", label: "Option B - Feature 1", placeholder: "$149", maxLength: 20 },
+      { id: "feature2", type: "text", label: "Feature 2", placeholder: "Users", maxLength: 30 },
+      { id: "option1Val2", type: "text", label: "Option A - Feature 2", placeholder: "5", maxLength: 20 },
+      { id: "option2Val2", type: "text", label: "Option B - Feature 2", placeholder: "Unlimited", maxLength: 20 },
+      { id: "feature3", type: "text", label: "Feature 3", placeholder: "Support", maxLength: 30 },
+      { id: "option1Val3", type: "text", label: "Option A - Feature 3", placeholder: "Email", maxLength: 20 },
+      { id: "option2Val3", type: "text", label: "Option B - Feature 3", placeholder: "24/7 Phone", maxLength: 20 },
+    ],
+  },
+
+  // ===== IMAGE SLIDES =====
   {
     id: "image-full",
     name: "Full Image",
@@ -168,6 +458,25 @@ export const slideTemplates: SlideTemplate[] = [
     ],
   },
   {
+    id: "image-gallery",
+    name: "Image Gallery (4 Images)",
+    category: "image",
+    thumbnail: "/slides/image-gallery.png",
+    fields: [
+      { id: "heading", type: "title", label: "Heading", placeholder: "Photo Gallery", maxLength: 50 },
+      { id: "image1Url", type: "image", label: "Image 1 URL", placeholder: "https://..." },
+      { id: "image1Caption", type: "text", label: "Image 1 Caption", placeholder: "Caption 1", maxLength: 30 },
+      { id: "image2Url", type: "image", label: "Image 2 URL", placeholder: "https://..." },
+      { id: "image2Caption", type: "text", label: "Image 2 Caption", placeholder: "Caption 2", maxLength: 30 },
+      { id: "image3Url", type: "image", label: "Image 3 URL", placeholder: "https://..." },
+      { id: "image3Caption", type: "text", label: "Image 3 Caption", placeholder: "Caption 3", maxLength: 30 },
+      { id: "image4Url", type: "image", label: "Image 4 URL", placeholder: "https://..." },
+      { id: "image4Caption", type: "text", label: "Image 4 Caption", placeholder: "Caption 4", maxLength: 30 },
+    ],
+  },
+
+  // ===== QUOTE SLIDES =====
+  {
     id: "quote-centered",
     name: "Quote - Centered",
     category: "quote",
@@ -188,6 +497,20 @@ export const slideTemplates: SlideTemplate[] = [
       { id: "author", type: "text", label: "Author", placeholder: "- Author Name", maxLength: 50 },
     ],
   },
+  {
+    id: "quote-testimonial",
+    name: "Testimonial",
+    category: "quote",
+    thumbnail: "/slides/quote-testimonial.png",
+    fields: [
+      { id: "quote", type: "body", label: "Testimonial", placeholder: "Customer feedback...", required: true, maxLength: 250 },
+      { id: "name", type: "text", label: "Customer Name", placeholder: "Jane Smith", maxLength: 40 },
+      { id: "title", type: "text", label: "Title/Company", placeholder: "CEO at TechCorp", maxLength: 50 },
+      { id: "rating", type: "text", label: "Rating (1-5)", placeholder: "5", maxLength: 5 },
+    ],
+  },
+
+  // ===== TEAM SLIDES =====
   {
     id: "team-single",
     name: "Team Member",
@@ -218,6 +541,8 @@ export const slideTemplates: SlideTemplate[] = [
       { id: "member4Role", type: "text", label: "Member 4 Role", placeholder: "Role", maxLength: 30 },
     ],
   },
+
+  // ===== CHART/DATA SLIDES =====
   {
     id: "chart-bar",
     name: "Bar Chart",
@@ -236,6 +561,41 @@ export const slideTemplates: SlideTemplate[] = [
     ],
   },
   {
+    id: "chart-pie",
+    name: "Pie Chart",
+    category: "chart",
+    thumbnail: "/slides/chart-pie.png",
+    fields: [
+      { id: "heading", type: "title", label: "Chart Title", placeholder: "Market Share", required: true, maxLength: 60 },
+      { id: "segment1Label", type: "text", label: "Segment 1", placeholder: "Product A", maxLength: 25 },
+      { id: "segment1Value", type: "text", label: "Segment 1 %", placeholder: "45", maxLength: 5 },
+      { id: "segment2Label", type: "text", label: "Segment 2", placeholder: "Product B", maxLength: 25 },
+      { id: "segment2Value", type: "text", label: "Segment 2 %", placeholder: "30", maxLength: 5 },
+      { id: "segment3Label", type: "text", label: "Segment 3", placeholder: "Product C", maxLength: 25 },
+      { id: "segment3Value", type: "text", label: "Segment 3 %", placeholder: "15", maxLength: 5 },
+      { id: "segment4Label", type: "text", label: "Segment 4", placeholder: "Other", maxLength: 25 },
+      { id: "segment4Value", type: "text", label: "Segment 4 %", placeholder: "10", maxLength: 5 },
+    ],
+  },
+  {
+    id: "chart-line",
+    name: "Line Chart Trend",
+    category: "chart",
+    thumbnail: "/slides/chart-line.png",
+    fields: [
+      { id: "heading", type: "title", label: "Chart Title", placeholder: "Growth Over Time", required: true, maxLength: 60 },
+      { id: "yAxisLabel", type: "text", label: "Y-Axis Label", placeholder: "Revenue ($K)", maxLength: 20 },
+      { id: "point1Label", type: "text", label: "Point 1 (X)", placeholder: "2020", maxLength: 15 },
+      { id: "point1Value", type: "text", label: "Point 1 (Y)", placeholder: "100", maxLength: 10 },
+      { id: "point2Label", type: "text", label: "Point 2 (X)", placeholder: "2021", maxLength: 15 },
+      { id: "point2Value", type: "text", label: "Point 2 (Y)", placeholder: "150", maxLength: 10 },
+      { id: "point3Label", type: "text", label: "Point 3 (X)", placeholder: "2022", maxLength: 15 },
+      { id: "point3Value", type: "text", label: "Point 3 (Y)", placeholder: "220", maxLength: 10 },
+      { id: "point4Label", type: "text", label: "Point 4 (X)", placeholder: "2023", maxLength: 15 },
+      { id: "point4Value", type: "text", label: "Point 4 (Y)", placeholder: "350", maxLength: 10 },
+    ],
+  },
+  {
     id: "stats-three",
     name: "Statistics (3 Numbers)",
     category: "chart",
@@ -250,6 +610,36 @@ export const slideTemplates: SlideTemplate[] = [
       { id: "stat3Label", type: "text", label: "Stat 3 Label", placeholder: "Support", maxLength: 30 },
     ],
   },
+  {
+    id: "stats-four",
+    name: "Statistics (4 Numbers)",
+    category: "chart",
+    thumbnail: "/slides/stats-four.png",
+    fields: [
+      { id: "heading", type: "title", label: "Section Title", placeholder: "By The Numbers", maxLength: 50 },
+      { id: "stat1Value", type: "text", label: "Stat 1 Value", placeholder: "10K+", required: true, maxLength: 15 },
+      { id: "stat1Label", type: "text", label: "Stat 1 Label", placeholder: "Users", maxLength: 25 },
+      { id: "stat2Value", type: "text", label: "Stat 2 Value", placeholder: "50M", required: true, maxLength: 15 },
+      { id: "stat2Label", type: "text", label: "Stat 2 Label", placeholder: "Downloads", maxLength: 25 },
+      { id: "stat3Value", type: "text", label: "Stat 3 Value", placeholder: "99.9%", required: true, maxLength: 15 },
+      { id: "stat3Label", type: "text", label: "Stat 3 Label", placeholder: "Uptime", maxLength: 25 },
+      { id: "stat4Value", type: "text", label: "Stat 4 Value", placeholder: "150+", required: true, maxLength: 15 },
+      { id: "stat4Label", type: "text", label: "Stat 4 Label", placeholder: "Countries", maxLength: 25 },
+    ],
+  },
+  {
+    id: "big-number",
+    name: "Big Number Focus",
+    category: "chart",
+    thumbnail: "/slides/big-number.png",
+    fields: [
+      { id: "number", type: "text", label: "Big Number", placeholder: "2.5M", required: true, maxLength: 15 },
+      { id: "label", type: "text", label: "Label", placeholder: "Active Users Worldwide", maxLength: 50 },
+      { id: "context", type: "body", label: "Context", placeholder: "A 150% increase from last year", maxLength: 150 },
+    ],
+  },
+
+  // ===== CLOSING SLIDES =====
   {
     id: "closing-thankyou",
     name: "Thank You",
@@ -286,6 +676,30 @@ export const slideTemplates: SlideTemplate[] = [
       { id: "address", type: "body", label: "Address", placeholder: "123 Main St, City, Country", maxLength: 100 },
     ],
   },
+  {
+    id: "closing-qa",
+    name: "Q&A Session",
+    category: "closing",
+    thumbnail: "/slides/closing-qa.png",
+    fields: [
+      { id: "title", type: "title", label: "Title", placeholder: "Questions?", required: true, maxLength: 30 },
+      { id: "subtitle", type: "text", label: "Subtitle", placeholder: "We're here to help", maxLength: 50 },
+      { id: "instruction", type: "body", label: "Instructions", placeholder: "Please raise your hand or type in chat...", maxLength: 150 },
+    ],
+  },
+  {
+    id: "closing-next-steps",
+    name: "Next Steps",
+    category: "closing",
+    thumbnail: "/slides/closing-next-steps.png",
+    fields: [
+      { id: "heading", type: "title", label: "Heading", placeholder: "Next Steps", required: true, maxLength: 40 },
+      { id: "step1", type: "text", label: "Step 1", placeholder: "Schedule follow-up meeting", maxLength: 60 },
+      { id: "step2", type: "text", label: "Step 2", placeholder: "Review proposal document", maxLength: 60 },
+      { id: "step3", type: "text", label: "Step 3", placeholder: "Make decision by Friday", maxLength: 60 },
+      { id: "contact", type: "text", label: "Contact", placeholder: "Reach out to: name@email.com", maxLength: 60 },
+    ],
+  },
 ];
 
 export const presentationTemplates: PresentationTemplate[] = [
@@ -303,7 +717,7 @@ export const presentationTemplates: PresentationTemplate[] = [
       fontFamily: "Arial",
       headingFont: "Arial",
     },
-    defaultSlides: ["title-centered", "content-bullets", "two-column", "stats-three", "closing-thankyou"],
+    defaultSlides: ["title-centered", "agenda-simple", "smartart-process", "stats-three", "closing-thankyou"],
   },
   {
     id: "corporate-dark",
@@ -319,7 +733,7 @@ export const presentationTemplates: PresentationTemplate[] = [
       fontFamily: "Arial",
       headingFont: "Arial",
     },
-    defaultSlides: ["title-bold", "content-basic", "image-right", "chart-bar", "closing-cta"],
+    defaultSlides: ["title-bold", "smartart-funnel", "chart-bar", "big-number", "closing-cta"],
   },
   {
     id: "minimal-white",
@@ -335,7 +749,7 @@ export const presentationTemplates: PresentationTemplate[] = [
       fontFamily: "Helvetica",
       headingFont: "Helvetica",
     },
-    defaultSlides: ["title-left", "content-basic", "quote-large", "image-full", "closing-contact"],
+    defaultSlides: ["title-left", "content-highlight", "quote-large", "keywords-cloud", "closing-contact"],
   },
   {
     id: "creative-gradient",
@@ -351,7 +765,7 @@ export const presentationTemplates: PresentationTemplate[] = [
       fontFamily: "Arial",
       headingFont: "Arial",
     },
-    defaultSlides: ["title-bold", "content-bullets", "image-left", "team-grid", "closing-cta"],
+    defaultSlides: ["title-bold", "smartart-venn", "three-column", "timeline-horizontal", "closing-cta"],
   },
   {
     id: "academic-green",
@@ -367,12 +781,12 @@ export const presentationTemplates: PresentationTemplate[] = [
       fontFamily: "Georgia",
       headingFont: "Georgia",
     },
-    defaultSlides: ["title-centered", "content-numbered", "two-column-bullets", "quote-centered", "closing-thankyou"],
+    defaultSlides: ["title-centered", "agenda-numbered", "smartart-pyramid", "quote-centered", "closing-thankyou"],
   },
   {
-    id: "startup-orange",
-    name: "Startup Orange",
-    description: "Energetic template for pitch decks",
+    id: "startup-pitch",
+    name: "Startup Pitch",
+    description: "Energetic template for pitch decks and investors",
     thumbnail: "/templates/startup-orange.png",
     theme: {
       primaryColor: "ea580c",
@@ -383,7 +797,7 @@ export const presentationTemplates: PresentationTemplate[] = [
       fontFamily: "Arial",
       headingFont: "Arial",
     },
-    defaultSlides: ["title-bold", "content-bullets", "stats-three", "team-single", "closing-cta"],
+    defaultSlides: ["title-bold", "content-highlight", "smartart-funnel", "stats-four", "closing-cta"],
   },
   {
     id: "elegant-navy",
@@ -399,7 +813,7 @@ export const presentationTemplates: PresentationTemplate[] = [
       fontFamily: "Times New Roman",
       headingFont: "Times New Roman",
     },
-    defaultSlides: ["title-centered", "content-basic", "two-column", "quote-centered", "closing-contact"],
+    defaultSlides: ["title-centered", "smartart-hierarchy", "comparison-table", "quote-testimonial", "closing-next-steps"],
   },
   {
     id: "tech-cyber",
@@ -415,7 +829,7 @@ export const presentationTemplates: PresentationTemplate[] = [
       fontFamily: "Courier New",
       headingFont: "Arial",
     },
-    defaultSlides: ["title-bold", "content-bullets", "chart-bar", "stats-three", "closing-cta"],
+    defaultSlides: ["title-bold", "smartart-cycle", "chart-line", "stats-three", "closing-cta"],
   },
   {
     id: "nature-earth",
@@ -431,7 +845,7 @@ export const presentationTemplates: PresentationTemplate[] = [
       fontFamily: "Georgia",
       headingFont: "Georgia",
     },
-    defaultSlides: ["title-left", "image-full", "content-basic", "quote-large", "closing-thankyou"],
+    defaultSlides: ["title-left", "smartart-cycle", "image-left", "quote-large", "closing-thankyou"],
   },
   {
     id: "healthcare-teal",
@@ -447,7 +861,7 @@ export const presentationTemplates: PresentationTemplate[] = [
       fontFamily: "Arial",
       headingFont: "Arial",
     },
-    defaultSlides: ["title-centered", "content-bullets", "stats-three", "team-grid", "closing-contact"],
+    defaultSlides: ["title-centered", "bullets-icons", "smartart-process", "stats-four", "closing-contact"],
   },
   {
     id: "finance-gold",
@@ -463,7 +877,7 @@ export const presentationTemplates: PresentationTemplate[] = [
       fontFamily: "Arial",
       headingFont: "Georgia",
     },
-    defaultSlides: ["title-bold", "chart-bar", "stats-three", "two-column", "closing-cta"],
+    defaultSlides: ["title-bold", "chart-pie", "chart-bar", "big-number", "closing-cta"],
   },
   {
     id: "education-red",
@@ -479,7 +893,7 @@ export const presentationTemplates: PresentationTemplate[] = [
       fontFamily: "Arial",
       headingFont: "Arial",
     },
-    defaultSlides: ["title-centered", "content-numbered", "image-left", "quote-centered", "closing-thankyou"],
+    defaultSlides: ["title-centered", "agenda-numbered", "smartart-matrix", "quote-centered", "closing-qa"],
   },
   {
     id: "modern-indigo",
@@ -495,7 +909,7 @@ export const presentationTemplates: PresentationTemplate[] = [
       fontFamily: "Arial",
       headingFont: "Arial",
     },
-    defaultSlides: ["title-left", "content-bullets", "two-column-bullets", "team-single", "closing-cta"],
+    defaultSlides: ["title-left", "timeline-roadmap", "three-column", "stats-three", "closing-next-steps"],
   },
   {
     id: "simple-gray",
@@ -511,7 +925,7 @@ export const presentationTemplates: PresentationTemplate[] = [
       fontFamily: "Arial",
       headingFont: "Arial",
     },
-    defaultSlides: ["title-centered", "content-basic", "image-right", "quote-large", "closing-contact"],
+    defaultSlides: ["title-centered", "content-basic", "two-column", "quote-large", "closing-contact"],
   },
   {
     id: "playful-pink",
@@ -527,7 +941,7 @@ export const presentationTemplates: PresentationTemplate[] = [
       fontFamily: "Arial",
       headingFont: "Arial",
     },
-    defaultSlides: ["title-bold", "content-bullets", "image-full", "team-grid", "closing-thankyou"],
+    defaultSlides: ["title-bold", "keywords-cloud", "smartart-venn", "team-grid", "closing-thankyou"],
   },
 ];
 

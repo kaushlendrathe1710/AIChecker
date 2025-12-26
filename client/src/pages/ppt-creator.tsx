@@ -27,7 +27,11 @@ import {
   BarChart3,
   Layout,
   Sparkles,
-  Loader2
+  Loader2,
+  GitBranch,
+  Clock,
+  List,
+  Target
 } from "lucide-react";
 
 interface SlideField {
@@ -76,13 +80,16 @@ interface SlideData {
 const categoryIcons: Record<string, any> = {
   title: Presentation,
   content: FileText,
-  bullets: FileText,
+  bullets: List,
   twoColumn: Layout,
   image: Image,
   quote: Quote,
   team: Users,
   chart: BarChart3,
   closing: Presentation,
+  smartart: GitBranch,
+  timeline: Clock,
+  agenda: Target,
 };
 
 export default function PptCreator() {
@@ -628,16 +635,19 @@ export default function PptCreator() {
                 <Tabs defaultValue="title">
                   <TabsList className="flex-wrap gap-1 h-auto p-1">
                     <TabsTrigger value="title">Title</TabsTrigger>
+                    <TabsTrigger value="agenda">Agenda</TabsTrigger>
                     <TabsTrigger value="content">Content</TabsTrigger>
                     <TabsTrigger value="bullets">Bullets</TabsTrigger>
-                    <TabsTrigger value="twoColumn">Two Column</TabsTrigger>
+                    <TabsTrigger value="smartart">SmartArt</TabsTrigger>
+                    <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                    <TabsTrigger value="twoColumn">Columns</TabsTrigger>
+                    <TabsTrigger value="chart">Charts</TabsTrigger>
                     <TabsTrigger value="image">Image</TabsTrigger>
                     <TabsTrigger value="quote">Quote</TabsTrigger>
                     <TabsTrigger value="team">Team</TabsTrigger>
-                    <TabsTrigger value="chart">Chart</TabsTrigger>
                     <TabsTrigger value="closing">Closing</TabsTrigger>
                   </TabsList>
-                  {["title", "content", "bullets", "twoColumn", "image", "quote", "team", "chart", "closing"].map(cat => (
+                  {["title", "agenda", "content", "bullets", "smartart", "timeline", "twoColumn", "chart", "image", "quote", "team", "closing"].map(cat => (
                     <TabsContent key={cat} value={cat} className="mt-4">
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                         {slideTemplatesData?.slideTemplates
@@ -761,16 +771,19 @@ export default function PptCreator() {
                     <Tabs defaultValue={currentSlideTemplate?.category || "title"}>
                       <TabsList className="flex-wrap gap-1 h-auto p-1">
                         <TabsTrigger value="title">Title</TabsTrigger>
+                        <TabsTrigger value="agenda">Agenda</TabsTrigger>
                         <TabsTrigger value="content">Content</TabsTrigger>
                         <TabsTrigger value="bullets">Bullets</TabsTrigger>
-                        <TabsTrigger value="twoColumn">Two Column</TabsTrigger>
+                        <TabsTrigger value="smartart">SmartArt</TabsTrigger>
+                        <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                        <TabsTrigger value="twoColumn">Columns</TabsTrigger>
+                        <TabsTrigger value="chart">Charts</TabsTrigger>
                         <TabsTrigger value="image">Image</TabsTrigger>
                         <TabsTrigger value="quote">Quote</TabsTrigger>
                         <TabsTrigger value="team">Team</TabsTrigger>
-                        <TabsTrigger value="chart">Chart</TabsTrigger>
                         <TabsTrigger value="closing">Closing</TabsTrigger>
                       </TabsList>
-                      {["title", "content", "bullets", "twoColumn", "image", "quote", "team", "chart", "closing"].map(cat => (
+                      {["title", "agenda", "content", "bullets", "smartart", "timeline", "twoColumn", "chart", "image", "quote", "team", "closing"].map(cat => (
                         <TabsContent key={cat} value={cat} className="mt-4">
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                             {slideTemplatesData?.slideTemplates
