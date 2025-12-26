@@ -21,7 +21,7 @@ import {
   Download,
 } from "lucide-react";
 import type { Document } from "@shared/schema";
-import { formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -180,9 +180,9 @@ export default function DocumentsPage() {
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">Documents</h1>
+          <h1 className="text-3xl font-bold" data-testid="text-page-title">History</h1>
           <p className="text-muted-foreground">
-            Manage and view your uploaded documents
+            View all your past scans and checks
           </p>
         </div>
         <div className="flex gap-2">
@@ -200,9 +200,9 @@ export default function DocumentsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>All Documents</CardTitle>
+          <CardTitle>Scan History</CardTitle>
           <CardDescription>
-            {documents.length} document{documents.length !== 1 ? "s" : ""} in your library
+            {documents.length} scan{documents.length !== 1 ? "s" : ""} in your history
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -247,11 +247,9 @@ export default function DocumentsPage() {
                           {doc.fileName}
                         </p>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-                          <span>{formatFileSize(doc.fileSize)}</span>
+                          <span>{format(new Date(doc.createdAt), "MMM d, yyyy 'at' h:mm a")}</span>
                           <span className="text-muted-foreground/40">|</span>
-                          <span>
-                            {formatDistanceToNow(new Date(doc.createdAt), { addSuffix: true })}
-                          </span>
+                          <span>{formatFileSize(doc.fileSize)}</span>
                           {doc.wordCount && (
                             <>
                               <span className="text-muted-foreground/40">|</span>

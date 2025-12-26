@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   LayoutDashboard,
-  FileText,
+  History,
   Settings,
   LogOut,
   Shield,
@@ -43,7 +43,7 @@ const menuItems = [
   { title: "Plagiarism Check", url: "/plagiarism-check", icon: Search },
   { title: "Grammar Check", url: "/grammar-check", icon: SpellCheck },
   { title: "File Converter", url: "/file-converter", icon: FileOutput },
-  { title: "Documents", url: "/documents", icon: FileText },
+  { title: "History", url: "/documents", icon: History },
   { title: "Subscription", url: "/subscription", icon: CreditCard },
 ];
 
