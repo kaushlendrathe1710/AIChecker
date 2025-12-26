@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import { sendOtpEmail, sendWelcomeEmail } from "./email";
 import { extractText, countWords } from "./textExtractor";
 import { scanDocument } from "./plagiarismScanner";
+import { scanForAI } from "./aiScanner";
+import { scanForPlagiarism } from "./plagiarismScannerService";
 import { emailSchema, otpVerifySchema, registrationSchema } from "@shared/schema";
 import multer from "multer";
 import { randomInt } from "crypto";
@@ -494,6 +496,422 @@ export async function registerRoutes(
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to download corrected file" });
+    }
+  });
+
+  app.post("/api/ai-check/upload", authMiddleware, upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const allowedTypes = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"];
+      if (!allowedTypes.includes(req.file.mimetype)) {
+        return res.status(400).json({ error: "Invalid file type. Please upload PDF, DOCX, or TXT files." });
+      }
+
+      const s3Key = `ai-checks/${req.userId}/${Date.now()}-${req.file.originalname}`;
+      const s3Url = await uploadFile(req.file.buffer, s3Key, req.file.mimetype);
+
+      const doc = await storage.createDocument({
+        userId: req.userId!,
+        fileName: req.file.originalname,
+        fileType: req.file.mimetype,
+        fileSize: req.file.size,
+        s3Key,
+        s3Url,
+      });
+
+      const aiCheckResult = await storage.createAiCheckResult({
+        documentId: doc.id,
+        aiScore: 0,
+        verdict: "human",
+        analysis: null,
+        highlightedSections: null,
+        scanDuration: null,
+        status: "pending",
+      });
+
+      res.json({ 
+        success: true, 
+        document: doc,
+        aiCheckResult,
+        message: "Document uploaded. AI check will start now." 
+      });
+
+      (async () => {
+        try {
+          const text = await extractText(req.file!.buffer, req.file!.mimetype);
+          const wordCount = countWords(text);
+          await storage.updateDocument(doc.id, { extractedText: text, wordCount });
+
+          const startTime = Date.now();
+          const result = await scanForAI(text);
+          const duration = Math.round((Date.now() - startTime) / 1000);
+
+          await storage.updateAiCheckResult(aiCheckResult.id, {
+            aiScore: result.aiScore,
+            verdict: result.verdict,
+            analysis: result.analysis,
+            highlightedSections: result.highlightedSections,
+            scanDuration: duration,
+            status: "completed",
+          });
+
+          await storage.updateDocument(doc.id, { status: "completed" });
+        } catch (error) {
+          console.error("AI check error:", error);
+          await storage.updateAiCheckResult(aiCheckResult.id, { status: "failed" });
+          await storage.updateDocument(doc.id, { status: "failed" });
+        }
+      })();
+    } catch (error) {
+      console.error("AI check upload error:", error);
+      res.status(500).json({ error: "Failed to upload file for AI check" });
+    }
+  });
+
+  app.get("/api/ai-check/:documentId", authMiddleware, async (req, res) => {
+    try {
+      const doc = await storage.getDocument(req.params.documentId);
+      if (!doc || doc.userId !== req.userId) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+
+      const aiResult = await storage.getAiCheckResultByDocument(doc.id);
+      if (!aiResult) {
+        return res.status(404).json({ error: "No AI check result found" });
+      }
+
+      res.json({
+        document: doc,
+        aiResult,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch AI check result" });
+    }
+  });
+
+  app.get("/api/ai-check/:documentId/download-report", authMiddleware, async (req, res) => {
+    try {
+      const doc = await storage.getDocument(req.params.documentId);
+      if (!doc || doc.userId !== req.userId) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+
+      const aiResult = await storage.getAiCheckResultByDocument(doc.id);
+      if (!aiResult) {
+        return res.status(404).json({ error: "No AI check result found" });
+      }
+
+      const baseName = doc.fileName.replace(/\.[^/.]+$/, "");
+      const reportFileName = `${baseName}_ai_report.txt`;
+
+      let reportContent = `AI CONTENT DETECTION REPORT\n`;
+      reportContent += `${"=".repeat(50)}\n\n`;
+      reportContent += `Document: ${doc.fileName}\n`;
+      reportContent += `Analysis Date: ${new Date(aiResult.createdAt).toLocaleDateString()}\n`;
+      reportContent += `Scan Duration: ${aiResult.scanDuration || 0} seconds\n\n`;
+      reportContent += `AI DETECTION SCORE: ${Math.round(aiResult.aiScore)}%\n`;
+      reportContent += `Verdict: ${aiResult.verdict.toUpperCase().replace(/_/g, " ")}\n\n`;
+      reportContent += `ANALYSIS\n${"-".repeat(30)}\n`;
+      reportContent += `${aiResult.analysis || "No detailed analysis available."}\n\n`;
+
+      const sections = aiResult.highlightedSections as any[];
+      if (sections && sections.length > 0) {
+        reportContent += `DETECTED AI-GENERATED SECTIONS\n${"-".repeat(30)}\n\n`;
+        sections.forEach((section, i) => {
+          reportContent += `Section ${i + 1} (${Math.round(section.aiProbability)}% AI probability):\n`;
+          reportContent += `"${section.text.substring(0, 300)}${section.text.length > 300 ? "..." : ""}"\n`;
+          reportContent += `Reason: ${section.reason}\n\n`;
+        });
+      }
+
+      res.json({ fileName: reportFileName, content: reportContent });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to generate AI report" });
+    }
+  });
+
+  app.post("/api/plagiarism-check/upload", authMiddleware, upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const allowedTypes = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"];
+      if (!allowedTypes.includes(req.file.mimetype)) {
+        return res.status(400).json({ error: "Invalid file type. Please upload PDF, DOCX, or TXT files." });
+      }
+
+      const s3Key = `plagiarism-checks/${req.userId}/${Date.now()}-${req.file.originalname}`;
+      const s3Url = await uploadFile(req.file.buffer, s3Key, req.file.mimetype);
+
+      const doc = await storage.createDocument({
+        userId: req.userId!,
+        fileName: req.file.originalname,
+        fileType: req.file.mimetype,
+        fileSize: req.file.size,
+        s3Key,
+        s3Url,
+      });
+
+      const plagiarismResult = await storage.createPlagiarismCheckResult({
+        documentId: doc.id,
+        plagiarismScore: 0,
+        verdict: "original",
+        summary: null,
+        highlightedSections: null,
+        scanDuration: null,
+        status: "pending",
+      });
+
+      res.json({ 
+        success: true, 
+        document: doc,
+        plagiarismResult,
+        message: "Document uploaded. Plagiarism check will start now." 
+      });
+
+      (async () => {
+        try {
+          const text = await extractText(req.file!.buffer, req.file!.mimetype);
+          const wordCount = countWords(text);
+          await storage.updateDocument(doc.id, { extractedText: text, wordCount });
+
+          const startTime = Date.now();
+          const result = await scanForPlagiarism(text);
+          const duration = Math.round((Date.now() - startTime) / 1000);
+
+          await storage.updatePlagiarismCheckResult(plagiarismResult.id, {
+            plagiarismScore: result.plagiarismScore,
+            verdict: result.verdict,
+            summary: result.summary,
+            highlightedSections: result.highlightedSections,
+            scanDuration: duration,
+            status: "completed",
+          });
+
+          for (const match of result.matches) {
+            await storage.createPlagiarismMatch({
+              plagiarismResultId: plagiarismResult.id,
+              sourceUrl: match.sourceUrl,
+              sourceTitle: match.sourceTitle,
+              matchedText: match.matchedText,
+              originalText: match.originalText,
+              similarityScore: match.similarityScore,
+              startIndex: match.startIndex,
+              endIndex: match.endIndex,
+            });
+          }
+
+          await storage.updateDocument(doc.id, { status: "completed" });
+        } catch (error) {
+          console.error("Plagiarism check error:", error);
+          await storage.updatePlagiarismCheckResult(plagiarismResult.id, { status: "failed" });
+          await storage.updateDocument(doc.id, { status: "failed" });
+        }
+      })();
+    } catch (error) {
+      console.error("Plagiarism check upload error:", error);
+      res.status(500).json({ error: "Failed to upload file for plagiarism check" });
+    }
+  });
+
+  app.get("/api/plagiarism-check/:documentId", authMiddleware, async (req, res) => {
+    try {
+      const doc = await storage.getDocument(req.params.documentId);
+      if (!doc || doc.userId !== req.userId) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+
+      const plagiarismResult = await storage.getPlagiarismCheckResultByDocument(doc.id);
+      if (!plagiarismResult) {
+        return res.status(404).json({ error: "No plagiarism check result found" });
+      }
+
+      const matches = await storage.getPlagiarismMatchesByResult(plagiarismResult.id);
+
+      res.json({
+        document: doc,
+        plagiarismResult,
+        matches,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch plagiarism check result" });
+    }
+  });
+
+  app.get("/api/plagiarism-check/:documentId/download-report", authMiddleware, async (req, res) => {
+    try {
+      const doc = await storage.getDocument(req.params.documentId);
+      if (!doc || doc.userId !== req.userId) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+
+      const plagiarismResult = await storage.getPlagiarismCheckResultByDocument(doc.id);
+      if (!plagiarismResult) {
+        return res.status(404).json({ error: "No plagiarism check result found" });
+      }
+
+      const matches = await storage.getPlagiarismMatchesByResult(plagiarismResult.id);
+      const baseName = doc.fileName.replace(/\.[^/.]+$/, "");
+      const reportFileName = `${baseName}_plagiarism_report.txt`;
+
+      let reportContent = `PLAGIARISM DETECTION REPORT\n`;
+      reportContent += `${"=".repeat(50)}\n\n`;
+      reportContent += `Document: ${doc.fileName}\n`;
+      reportContent += `Analysis Date: ${new Date(plagiarismResult.createdAt).toLocaleDateString()}\n`;
+      reportContent += `Scan Duration: ${plagiarismResult.scanDuration || 0} seconds\n\n`;
+      reportContent += `PLAGIARISM SCORE: ${Math.round(plagiarismResult.plagiarismScore)}%\n`;
+      reportContent += `Verdict: ${plagiarismResult.verdict.toUpperCase()}\n\n`;
+      reportContent += `SUMMARY\n${"-".repeat(30)}\n`;
+      reportContent += `${plagiarismResult.summary || "No summary available."}\n\n`;
+
+      if (matches && matches.length > 0) {
+        reportContent += `DETECTED MATCHES (${matches.length})\n${"-".repeat(30)}\n\n`;
+        matches.forEach((match, i) => {
+          reportContent += `Match ${i + 1} (${Math.round(match.similarityScore)}% similarity):\n`;
+          reportContent += `Source: ${match.sourceTitle || "Unknown source"}\n`;
+          if (match.sourceUrl) reportContent += `URL: ${match.sourceUrl}\n`;
+          reportContent += `Text: "${match.matchedText.substring(0, 200)}${match.matchedText.length > 200 ? "..." : ""}"\n\n`;
+        });
+      }
+
+      res.json({ fileName: reportFileName, content: reportContent });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to generate plagiarism report" });
+    }
+  });
+
+  app.post("/api/grammar-check/upload", authMiddleware, upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const allowedTypes = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"];
+      if (!allowedTypes.includes(req.file.mimetype)) {
+        return res.status(400).json({ error: "Invalid file type. Please upload PDF, DOCX, or TXT files." });
+      }
+
+      const s3Key = `grammar-checks/${req.userId}/${Date.now()}-${req.file.originalname}`;
+      const s3Url = await uploadFile(req.file.buffer, s3Key, req.file.mimetype);
+
+      const doc = await storage.createDocument({
+        userId: req.userId!,
+        fileName: req.file.originalname,
+        fileType: req.file.mimetype,
+        fileSize: req.file.size,
+        s3Key,
+        s3Url,
+      });
+
+      res.json({ 
+        success: true, 
+        document: doc,
+        message: "Document uploaded. Grammar check will start now." 
+      });
+
+      (async () => {
+        try {
+          const text = await extractText(req.file!.buffer, req.file!.mimetype);
+          const wordCount = countWords(text);
+          await storage.updateDocument(doc.id, { extractedText: text, wordCount });
+
+          const grammarResult = await checkGrammar(text);
+
+          await storage.createGrammarResult({
+            documentId: doc.id,
+            totalMistakes: grammarResult.totalMistakes,
+            spellingErrors: grammarResult.spellingErrors,
+            grammarErrors: grammarResult.grammarErrors,
+            punctuationErrors: grammarResult.punctuationErrors,
+            styleErrors: grammarResult.styleErrors,
+            overallScore: grammarResult.overallScore,
+            mistakes: grammarResult.mistakes,
+            correctedText: grammarResult.correctedText,
+          });
+
+          await storage.updateDocument(doc.id, { status: "completed" });
+        } catch (error) {
+          console.error("Grammar check error:", error);
+          await storage.updateDocument(doc.id, { status: "failed" });
+        }
+      })();
+    } catch (error) {
+      console.error("Grammar check upload error:", error);
+      res.status(500).json({ error: "Failed to upload file for grammar check" });
+    }
+  });
+
+  app.get("/api/grammar-check/:documentId", authMiddleware, async (req, res) => {
+    try {
+      const doc = await storage.getDocument(req.params.documentId);
+      if (!doc || doc.userId !== req.userId) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+
+      const grammarResult = await storage.getGrammarResultByDocument(doc.id);
+      if (!grammarResult) {
+        return res.status(404).json({ error: "No grammar check result found" });
+      }
+
+      res.json({
+        document: doc,
+        grammarResult,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch grammar check result" });
+    }
+  });
+
+  app.get("/api/grammar-check/:documentId/download-report", authMiddleware, async (req, res) => {
+    try {
+      const doc = await storage.getDocument(req.params.documentId);
+      if (!doc || doc.userId !== req.userId) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+
+      const grammarResult = await storage.getGrammarResultByDocument(doc.id);
+      if (!grammarResult) {
+        return res.status(404).json({ error: "No grammar check result found" });
+      }
+
+      const baseName = doc.fileName.replace(/\.[^/.]+$/, "");
+      const reportFileName = `${baseName}_grammar_report.txt`;
+
+      let reportContent = `GRAMMAR CHECK REPORT\n`;
+      reportContent += `${"=".repeat(50)}\n\n`;
+      reportContent += `Document: ${doc.fileName}\n`;
+      reportContent += `Analysis Date: ${new Date(grammarResult.createdAt).toLocaleDateString()}\n\n`;
+      reportContent += `OVERALL SCORE: ${Math.round(grammarResult.overallScore)}%\n\n`;
+      reportContent += `ERROR BREAKDOWN\n${"-".repeat(30)}\n`;
+      reportContent += `Total Mistakes: ${grammarResult.totalMistakes}\n`;
+      reportContent += `Spelling Errors: ${grammarResult.spellingErrors}\n`;
+      reportContent += `Grammar Errors: ${grammarResult.grammarErrors}\n`;
+      reportContent += `Punctuation Errors: ${grammarResult.punctuationErrors}\n`;
+      reportContent += `Style Issues: ${grammarResult.styleErrors}\n\n`;
+
+      const mistakes = grammarResult.mistakes as any[];
+      if (mistakes && mistakes.length > 0) {
+        reportContent += `DETAILED ERRORS\n${"-".repeat(30)}\n\n`;
+        mistakes.forEach((mistake, i) => {
+          reportContent += `${i + 1}. [${mistake.type.toUpperCase()}]\n`;
+          reportContent += `   Original: "${mistake.text}"\n`;
+          reportContent += `   Suggestion: "${mistake.suggestion}"\n`;
+          reportContent += `   Explanation: ${mistake.explanation}\n\n`;
+        });
+      }
+
+      if (grammarResult.correctedText) {
+        reportContent += `\nCORRECTED TEXT\n${"-".repeat(30)}\n`;
+        reportContent += grammarResult.correctedText;
+      }
+
+      res.json({ fileName: reportFileName, content: reportContent });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to generate grammar report" });
     }
   });
 
