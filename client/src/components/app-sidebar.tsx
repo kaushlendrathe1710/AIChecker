@@ -35,6 +35,7 @@ import {
   CreditCard,
   Bot,
   Search,
+  FileOutput,
 } from "lucide-react";
 
 const menuItems = [
@@ -42,6 +43,7 @@ const menuItems = [
   { title: "AI Check", url: "/ai-check", icon: Bot },
   { title: "Plagiarism Check", url: "/plagiarism-check", icon: Search },
   { title: "Grammar Check", url: "/grammar-check", icon: SpellCheck },
+  { title: "File Converter", url: "/file-converter", icon: FileOutput },
   { title: "Documents", url: "/documents", icon: FileText },
   { title: "History", url: "/history", icon: History },
   { title: "Subscription", url: "/subscription", icon: CreditCard },

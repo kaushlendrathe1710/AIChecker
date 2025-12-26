@@ -13,6 +13,8 @@ import { uploadFile, getFileBuffer, getSignedDownloadUrl } from "./s3";
 import { checkGrammar } from "./grammarChecker";
 import { stripeService } from "./stripeService";
 import { getStripePublishableKey, getUncachableStripeClient } from "./stripeClient";
+import { generateAiCheckPdf, generatePlagiarismCheckPdf, generateGrammarCheckPdf } from "./pdfReportGenerator";
+import { convertFile, type ConversionType } from "./fileConverter";
 
 const upload = multer({ 
   storage: multer.memoryStorage(),
@@ -605,30 +607,15 @@ export async function registerRoutes(
       }
 
       const baseName = doc.fileName.replace(/\.[^/.]+$/, "");
-      const reportFileName = `${baseName}_ai_report.txt`;
+      const reportFileName = `${baseName}_ai_report.pdf`;
 
-      let reportContent = `AI CONTENT DETECTION REPORT\n`;
-      reportContent += `${"=".repeat(50)}\n\n`;
-      reportContent += `Document: ${doc.fileName}\n`;
-      reportContent += `Analysis Date: ${new Date(aiResult.createdAt).toLocaleDateString()}\n`;
-      reportContent += `Scan Duration: ${aiResult.scanDuration || 0} seconds\n\n`;
-      reportContent += `AI DETECTION SCORE: ${Math.round(aiResult.aiScore)}%\n`;
-      reportContent += `Verdict: ${aiResult.verdict.toUpperCase().replace(/_/g, " ")}\n\n`;
-      reportContent += `ANALYSIS\n${"-".repeat(30)}\n`;
-      reportContent += `${aiResult.analysis || "No detailed analysis available."}\n\n`;
-
-      const sections = aiResult.highlightedSections as any[];
-      if (sections && sections.length > 0) {
-        reportContent += `DETECTED AI-GENERATED SECTIONS\n${"-".repeat(30)}\n\n`;
-        sections.forEach((section, i) => {
-          reportContent += `Section ${i + 1} (${Math.round(section.aiProbability)}% AI probability):\n`;
-          reportContent += `"${section.text.substring(0, 300)}${section.text.length > 300 ? "..." : ""}"\n`;
-          reportContent += `Reason: ${section.reason}\n\n`;
-        });
-      }
-
-      res.json({ fileName: reportFileName, content: reportContent });
+      const pdfBuffer = await generateAiCheckPdf(doc, aiResult);
+      
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${reportFileName}"`);
+      res.send(pdfBuffer);
     } catch (error) {
+      console.error("Failed to generate AI PDF report:", error);
       res.status(500).json({ error: "Failed to generate AI report" });
     }
   });
@@ -756,30 +743,15 @@ export async function registerRoutes(
 
       const matches = await storage.getPlagiarismMatchesByResult(plagiarismResult.id);
       const baseName = doc.fileName.replace(/\.[^/.]+$/, "");
-      const reportFileName = `${baseName}_plagiarism_report.txt`;
+      const reportFileName = `${baseName}_plagiarism_report.pdf`;
 
-      let reportContent = `PLAGIARISM DETECTION REPORT\n`;
-      reportContent += `${"=".repeat(50)}\n\n`;
-      reportContent += `Document: ${doc.fileName}\n`;
-      reportContent += `Analysis Date: ${new Date(plagiarismResult.createdAt).toLocaleDateString()}\n`;
-      reportContent += `Scan Duration: ${plagiarismResult.scanDuration || 0} seconds\n\n`;
-      reportContent += `PLAGIARISM SCORE: ${Math.round(plagiarismResult.plagiarismScore)}%\n`;
-      reportContent += `Verdict: ${plagiarismResult.verdict.toUpperCase()}\n\n`;
-      reportContent += `SUMMARY\n${"-".repeat(30)}\n`;
-      reportContent += `${plagiarismResult.summary || "No summary available."}\n\n`;
-
-      if (matches && matches.length > 0) {
-        reportContent += `DETECTED MATCHES (${matches.length})\n${"-".repeat(30)}\n\n`;
-        matches.forEach((match, i) => {
-          reportContent += `Match ${i + 1} (${Math.round(match.similarityScore)}% similarity):\n`;
-          reportContent += `Source: ${match.sourceTitle || "Unknown source"}\n`;
-          if (match.sourceUrl) reportContent += `URL: ${match.sourceUrl}\n`;
-          reportContent += `Text: "${match.matchedText.substring(0, 200)}${match.matchedText.length > 200 ? "..." : ""}"\n\n`;
-        });
-      }
-
-      res.json({ fileName: reportFileName, content: reportContent });
+      const pdfBuffer = await generatePlagiarismCheckPdf(doc, plagiarismResult, matches);
+      
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${reportFileName}"`);
+      res.send(pdfBuffer);
     } catch (error) {
+      console.error("Failed to generate plagiarism PDF report:", error);
       res.status(500).json({ error: "Failed to generate plagiarism report" });
     }
   });
@@ -879,39 +851,40 @@ export async function registerRoutes(
       }
 
       const baseName = doc.fileName.replace(/\.[^/.]+$/, "");
-      const reportFileName = `${baseName}_grammar_report.txt`;
+      const reportFileName = `${baseName}_grammar_report.pdf`;
 
-      let reportContent = `GRAMMAR CHECK REPORT\n`;
-      reportContent += `${"=".repeat(50)}\n\n`;
-      reportContent += `Document: ${doc.fileName}\n`;
-      reportContent += `Analysis Date: ${new Date(grammarResult.createdAt).toLocaleDateString()}\n\n`;
-      reportContent += `OVERALL SCORE: ${Math.round(grammarResult.overallScore)}%\n\n`;
-      reportContent += `ERROR BREAKDOWN\n${"-".repeat(30)}\n`;
-      reportContent += `Total Mistakes: ${grammarResult.totalMistakes}\n`;
-      reportContent += `Spelling Errors: ${grammarResult.spellingErrors}\n`;
-      reportContent += `Grammar Errors: ${grammarResult.grammarErrors}\n`;
-      reportContent += `Punctuation Errors: ${grammarResult.punctuationErrors}\n`;
-      reportContent += `Style Issues: ${grammarResult.styleErrors}\n\n`;
-
-      const mistakes = grammarResult.mistakes as any[];
-      if (mistakes && mistakes.length > 0) {
-        reportContent += `DETAILED ERRORS\n${"-".repeat(30)}\n\n`;
-        mistakes.forEach((mistake, i) => {
-          reportContent += `${i + 1}. [${mistake.type.toUpperCase()}]\n`;
-          reportContent += `   Original: "${mistake.text}"\n`;
-          reportContent += `   Suggestion: "${mistake.suggestion}"\n`;
-          reportContent += `   Explanation: ${mistake.explanation}\n\n`;
-        });
-      }
-
-      if (grammarResult.correctedText) {
-        reportContent += `\nCORRECTED TEXT\n${"-".repeat(30)}\n`;
-        reportContent += grammarResult.correctedText;
-      }
-
-      res.json({ fileName: reportFileName, content: reportContent });
+      const pdfBuffer = await generateGrammarCheckPdf(doc, grammarResult);
+      
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${reportFileName}"`);
+      res.send(pdfBuffer);
     } catch (error) {
+      console.error("Failed to generate grammar PDF report:", error);
       res.status(500).json({ error: "Failed to generate grammar report" });
+    }
+  });
+
+  app.post("/api/convert-file", authMiddleware, upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const conversionType = req.body.conversionType as ConversionType;
+      const validTypes = ["word-to-pdf", "pdf-to-word", "txt-to-pdf", "pdf-to-txt"];
+      
+      if (!validTypes.includes(conversionType)) {
+        return res.status(400).json({ error: "Invalid conversion type" });
+      }
+
+      const result = await convertFile(req.file.buffer, conversionType, req.file.originalname);
+      
+      res.setHeader("Content-Type", result.mimeType);
+      res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+      res.send(result.buffer);
+    } catch (error) {
+      console.error("File conversion failed:", error);
+      res.status(500).json({ error: "File conversion failed" });
     }
   });
 

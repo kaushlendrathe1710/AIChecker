@@ -20,6 +20,7 @@ import HistoryPage from "@/pages/history";
 import AiCheckPage from "@/pages/ai-check";
 import PlagiarismCheckPage from "@/pages/plagiarism-check";
 import GrammarCheckPage from "@/pages/grammar-check";
+import FileConverterPage from "@/pages/file-converter";
 import SubscriptionPage from "@/pages/subscription";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminUsers from "@/pages/admin/users";
@@ -219,6 +220,15 @@ function AppRouter() {
           component={() => (
             <DashboardLayout>
               <GrammarCheckPage />
+            </DashboardLayout>
+          )}
+        />
+      </Route>
+      <Route path="/file-converter">
+        <ProtectedRoute
+          component={() => (
+            <DashboardLayout>
+              <FileConverterPage />
             </DashboardLayout>
           )}
         />

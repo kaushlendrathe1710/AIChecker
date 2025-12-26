@@ -133,15 +133,20 @@ export default function GrammarCheck() {
 
   const downloadMutation = useMutation({
     mutationFn: async (documentId: string) => {
-      const response = await apiRequest("GET", `/api/grammar-check/${documentId}/download-report`);
-      return response.json();
+      const response = await fetch(`/api/grammar-check/${documentId}/download-report`, {
+        headers: { "x-session-id": localStorage.getItem("sessionId") || "" },
+      });
+      if (!response.ok) throw new Error("Download failed");
+      const blob = await response.blob();
+      const disposition = response.headers.get("Content-Disposition");
+      const fileName = disposition?.match(/filename="(.+)"/)?.[1] || "grammar_report.pdf";
+      return { blob, fileName };
     },
-    onSuccess: (result) => {
-      const blob = new Blob([result.content], { type: "text/plain" });
+    onSuccess: ({ blob, fileName }) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = result.fileName;
+      a.download = fileName;
       a.click();
       URL.revokeObjectURL(url);
       toast({ title: "Report downloaded" });
