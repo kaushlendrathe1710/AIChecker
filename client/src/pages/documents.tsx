@@ -19,8 +19,20 @@ import {
   RefreshCw,
   SpellCheck,
   Download,
+  Bot,
+  Search,
 } from "lucide-react";
 import type { Document } from "@shared/schema";
+
+interface DocumentChecks {
+  ai: { done: boolean; score: number; status: string } | null;
+  plagiarism: { done: boolean; score: number; status: string } | null;
+  grammar: { done: boolean; score: number; totalMistakes: number } | null;
+}
+
+interface DocumentWithChecks extends Document {
+  checks: DocumentChecks;
+}
 import { format, formatDistanceToNow } from "date-fns";
 
 function formatFileSize(bytes: number): string {
@@ -78,7 +90,7 @@ export default function DocumentsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data, isLoading, refetch } = useQuery<{ documents: Document[] }>({
+  const { data, isLoading, refetch } = useQuery<{ documents: DocumentWithChecks[] }>({
     queryKey: ["/api/documents"],
     queryFn: async () => {
       const sessionId = getSessionId();
@@ -255,6 +267,41 @@ export default function DocumentsPage() {
                               <span className="text-muted-foreground/40">|</span>
                               <span>{doc.wordCount.toLocaleString()} words</span>
                             </>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          {doc.checks?.ai && (
+                            <Badge 
+                              variant="outline" 
+                              className="bg-purple-500/10 text-purple-600 border-purple-200"
+                              data-testid={`badge-ai-${doc.id}`}
+                            >
+                              <Bot className="w-3 h-3 mr-1" />
+                              AI Check: {doc.checks.ai.score?.toFixed(0) || 0}%
+                            </Badge>
+                          )}
+                          {doc.checks?.plagiarism && (
+                            <Badge 
+                              variant="outline" 
+                              className="bg-orange-500/10 text-orange-600 border-orange-200"
+                              data-testid={`badge-plagiarism-${doc.id}`}
+                            >
+                              <Search className="w-3 h-3 mr-1" />
+                              Plagiarism: {doc.checks.plagiarism.score?.toFixed(0) || 0}%
+                            </Badge>
+                          )}
+                          {doc.checks?.grammar && (
+                            <Badge 
+                              variant="outline" 
+                              className="bg-blue-500/10 text-blue-600 border-blue-200"
+                              data-testid={`badge-grammar-${doc.id}`}
+                            >
+                              <SpellCheck className="w-3 h-3 mr-1" />
+                              Grammar: {doc.checks.grammar.totalMistakes} errors
+                            </Badge>
+                          )}
+                          {!doc.checks?.ai && !doc.checks?.plagiarism && !doc.checks?.grammar && (
+                            <span className="text-xs text-muted-foreground italic">No checks performed yet</span>
                           )}
                         </div>
                       </div>

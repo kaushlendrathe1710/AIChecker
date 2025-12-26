@@ -256,7 +256,27 @@ export async function registerRoutes(
   app.get("/api/documents", authMiddleware, async (req, res) => {
     try {
       const documents = await storage.getDocumentsByUser(req.userId!);
-      res.json({ documents });
+      
+      const documentsWithChecks = await Promise.all(
+        documents.map(async (doc) => {
+          const [aiCheck, plagiarismCheck, grammarCheck] = await Promise.all([
+            storage.getAiCheckResultByDocument(doc.id),
+            storage.getPlagiarismCheckResultByDocument(doc.id),
+            storage.getGrammarResultByDocument(doc.id),
+          ]);
+          
+          return {
+            ...doc,
+            checks: {
+              ai: aiCheck ? { done: true, score: aiCheck.aiScore, status: aiCheck.status } : null,
+              plagiarism: plagiarismCheck ? { done: true, score: plagiarismCheck.plagiarismScore, status: plagiarismCheck.status } : null,
+              grammar: grammarCheck ? { done: true, score: grammarCheck.overallScore, totalMistakes: grammarCheck.totalMistakes } : null,
+            },
+          };
+        })
+      );
+      
+      res.json({ documents: documentsWithChecks });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch documents" });
     }
