@@ -20,6 +20,7 @@ import AiCheckPage from "@/pages/ai-check";
 import PlagiarismCheckPage from "@/pages/plagiarism-check";
 import GrammarCheckPage from "@/pages/grammar-check";
 import FileConverterPage from "@/pages/file-converter";
+import PptCreatorPage from "@/pages/ppt-creator";
 import SubscriptionPage from "@/pages/subscription";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminUsers from "@/pages/admin/users";
@@ -219,6 +220,15 @@ function AppRouter() {
           component={() => (
             <DashboardLayout>
               <FileConverterPage />
+            </DashboardLayout>
+          )}
+        />
+      </Route>
+      <Route path="/ppt-creator">
+        <ProtectedRoute
+          component={() => (
+            <DashboardLayout>
+              <PptCreatorPage />
             </DashboardLayout>
           )}
         />
