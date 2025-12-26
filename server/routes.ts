@@ -532,16 +532,16 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid file type. Please upload PDF, DOCX, or TXT files." });
       }
 
-      const s3Key = `ai-checks/${req.userId}/${Date.now()}-${req.file.originalname}`;
-      const s3Url = await uploadFile(req.file.buffer, s3Key, req.file.mimetype);
+      const s3KeyPrefix = `ai-checks/${req.userId}/${Date.now()}-${req.file.originalname}`;
+      const uploadResult = await uploadFile(req.file.buffer, s3KeyPrefix, req.file.mimetype);
 
       const doc = await storage.createDocument({
         userId: req.userId!,
         fileName: req.file.originalname,
         fileType: req.file.mimetype,
         fileSize: req.file.size,
-        s3Key,
-        s3Url,
+        s3Key: uploadResult.key,
+        s3Url: uploadResult.url,
       });
 
       const aiCheckResult = await storage.createAiCheckResult({
@@ -651,16 +651,16 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid file type. Please upload PDF, DOCX, or TXT files." });
       }
 
-      const s3Key = `plagiarism-checks/${req.userId}/${Date.now()}-${req.file.originalname}`;
-      const s3Url = await uploadFile(req.file.buffer, s3Key, req.file.mimetype);
+      const s3KeyPrefix = `plagiarism-checks/${req.userId}/${Date.now()}-${req.file.originalname}`;
+      const uploadResult = await uploadFile(req.file.buffer, s3KeyPrefix, req.file.mimetype);
 
       const doc = await storage.createDocument({
         userId: req.userId!,
         fileName: req.file.originalname,
         fileType: req.file.mimetype,
         fileSize: req.file.size,
-        s3Key,
-        s3Url,
+        s3Key: uploadResult.key,
+        s3Url: uploadResult.url,
       });
 
       const plagiarismResult = await storage.createPlagiarismCheckResult({
@@ -787,16 +787,16 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid file type. Please upload PDF, DOCX, or TXT files." });
       }
 
-      const s3Key = `grammar-checks/${req.userId}/${Date.now()}-${req.file.originalname}`;
-      const s3Url = await uploadFile(req.file.buffer, s3Key, req.file.mimetype);
+      const s3KeyPrefix = `grammar-checks/${req.userId}/${Date.now()}-${req.file.originalname}`;
+      const uploadResult = await uploadFile(req.file.buffer, s3KeyPrefix, req.file.mimetype);
 
       const doc = await storage.createDocument({
         userId: req.userId!,
         fileName: req.file.originalname,
         fileType: req.file.mimetype,
         fileSize: req.file.size,
-        s3Key,
-        s3Url,
+        s3Key: uploadResult.key,
+        s3Url: uploadResult.url,
       });
 
       res.json({ 
@@ -1490,6 +1490,101 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Portal error:", error);
       res.status(500).json({ error: "Failed to create portal session" });
+    }
+  });
+
+  app.get("/api/ppt/templates", authMiddleware, async (req, res) => {
+    try {
+      const { presentationTemplates } = await import("./pptTemplates");
+      res.json({ templates: presentationTemplates });
+    } catch (error) {
+      console.error("Failed to get PPT templates:", error);
+      res.status(500).json({ error: "Failed to get templates" });
+    }
+  });
+
+  app.get("/api/ppt/slide-templates", authMiddleware, async (req, res) => {
+    try {
+      const { slideTemplates } = await import("./pptTemplates");
+      res.json({ slideTemplates });
+    } catch (error) {
+      console.error("Failed to get slide templates:", error);
+      res.status(500).json({ error: "Failed to get slide templates" });
+    }
+  });
+
+  app.post("/api/ppt/generate", authMiddleware, async (req, res) => {
+    try {
+      const { templateId, slides, title, generateFootnotes } = req.body;
+      
+      if (!templateId || !slides || !Array.isArray(slides)) {
+        return res.status(400).json({ error: "Template ID and slides are required" });
+      }
+
+      const { generatePresentation } = await import("./pptGenerator");
+      const buffer = await generatePresentation(
+        { templateId, slides, title },
+        generateFootnotes !== false
+      );
+
+      const fileName = `${title || "presentation"}_${Date.now()}.pptx`;
+      
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+      res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+      res.send(buffer);
+    } catch (error) {
+      console.error("PPT generation error:", error);
+      res.status(500).json({ error: "Failed to generate presentation" });
+    }
+  });
+
+  app.post("/api/ppt/generate-footnote", authMiddleware, async (req, res) => {
+    try {
+      const { slideContent, slideTemplateId } = req.body;
+      
+      if (!slideContent || !slideTemplateId) {
+        return res.status(400).json({ error: "Slide content and template ID are required" });
+      }
+
+      const { slideTemplates } = await import("./pptTemplates");
+      const slideTemplate = slideTemplates.find(t => t.id === slideTemplateId);
+      
+      if (!slideTemplate) {
+        return res.status(400).json({ error: "Invalid slide template" });
+      }
+
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI();
+
+      const contentText = Object.entries(slideContent)
+        .filter(([_, value]) => value && typeof value === 'string' && value.trim())
+        .map(([key, value]) => `${key}: ${value}`)
+        .join("\n");
+
+      if (!contentText.trim()) {
+        return res.json({ footnote: "" });
+      }
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are a presentation assistant. Generate a brief, helpful speaker note/footnote for the given slide content. Keep it to 1-2 sentences that would help the presenter remember key talking points. Be concise and professional."
+          },
+          {
+            role: "user",
+            content: `Slide type: ${slideTemplate.name}\n\nSlide content:\n${contentText}\n\nGenerate a brief speaker note for this slide:`
+          }
+        ],
+        max_tokens: 100,
+        temperature: 0.7,
+      });
+
+      res.json({ footnote: response.choices[0]?.message?.content?.trim() || "" });
+    } catch (error) {
+      console.error("Footnote generation error:", error);
+      res.status(500).json({ error: "Failed to generate footnote" });
     }
   });
 
