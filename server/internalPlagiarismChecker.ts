@@ -7,6 +7,7 @@ export interface InternalMatch {
   matchPercentage: number;
   matchCount: number;
   uploadedAt: Date;
+  matchedSentences: string[];
 }
 
 export interface InternalCheckResult {
@@ -76,10 +77,11 @@ export async function checkAgainstInternalDatabase(
   currentDocumentId: string,
   text: string
 ): Promise<InternalCheckResult> {
-  const normalizedText = normalizeText(text);
-  const sentences = splitIntoSentences(normalizedText);
+  const preservedSentences = splitIntoSentencesPreserved(text);
+  const sentences = preservedSentences.map(s => s.normalized);
+  const originalSentences = preservedSentences.map(s => s.original);
   const currentSentenceHashes = hashSentences(sentences);
-  const currentTextHash = hashText(normalizedText);
+  const currentTextHash = hashText(normalizeText(text));
 
   const existingFingerprints = await db
     .select()
@@ -98,16 +100,19 @@ export async function checkAgainstInternalDatabase(
         matchPercentage: 100,
         matchCount: sentences.length,
         uploadedAt: fp.createdAt,
+        matchedSentences: originalSentences,
       });
       continue;
     }
 
     const existingSentenceHashes = fp.sentenceHashes as string[] || [];
     let matchCount = 0;
+    const matchedSentences: string[] = [];
 
     for (let i = 0; i < currentSentenceHashes.length; i++) {
       if (existingSentenceHashes.includes(currentSentenceHashes[i])) {
         matchCount++;
+        matchedSentences.push(originalSentences[i]);
       }
     }
 
@@ -119,6 +124,7 @@ export async function checkAgainstInternalDatabase(
           matchPercentage,
           matchCount,
           uploadedAt: fp.createdAt,
+          matchedSentences,
         });
       }
     }
