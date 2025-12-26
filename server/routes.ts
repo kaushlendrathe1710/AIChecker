@@ -5,7 +5,7 @@ import { sendOtpEmail, sendWelcomeEmail } from "./email";
 import { extractText, countWords } from "./textExtractor";
 import { scanDocument } from "./plagiarismScanner";
 import { scanForAI } from "./aiScanner";
-import { scanForPlagiarism } from "./plagiarismScannerService";
+import { scanForPlagiarism, scanForPlagiarismEnhanced } from "./plagiarismScannerService";
 import { emailSchema, otpVerifySchema, registrationSchema } from "@shared/schema";
 import multer from "multer";
 import { randomInt } from "crypto";
@@ -706,9 +706,15 @@ export async function registerRoutes(
 
           const startTime = Date.now();
           console.log("[PLAGIARISM CHECK] Starting plagiarism scan...");
-          const result = await scanForPlagiarism(text);
+          const result = await scanForPlagiarismEnhanced(text, doc.id, req.userId!, fileName);
           const duration = Math.round((Date.now() - startTime) / 1000);
           console.log("[PLAGIARISM CHECK] Scan complete. Score:", result.plagiarismScore, "Verdict:", result.verdict, "Duration:", duration, "s");
+          if (result.hasInternalMatches) {
+            console.log("[PLAGIARISM CHECK] Internal database matches detected");
+          }
+          if (result.webSearchEnabled) {
+            console.log("[PLAGIARISM CHECK] Web search was enabled for this scan");
+          }
 
           const updated = await storage.updatePlagiarismCheckResult(plagiarismResult.id, {
             plagiarismScore: result.plagiarismScore,

@@ -124,6 +124,17 @@ export const plagiarismMatches = pgTable("plagiarism_matches", {
   endIndex: integer("end_index").notNull(),
 });
 
+export const documentFingerprints = pgTable("document_fingerprints", {
+  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  documentId: varchar("document_id", { length: 36 }).notNull().references(() => documents.id),
+  userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id),
+  textHash: text("text_hash").notNull(),
+  sentenceHashes: jsonb("sentence_hashes"),
+  wordCount: integer("word_count").notNull(),
+  fileName: text("file_name").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const subscriptionPlans = pgTable("subscription_plans", {
   id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),

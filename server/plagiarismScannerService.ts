@@ -1,6 +1,8 @@
 import OpenAI from "openai";
 import { splitIntoSentences } from "./textExtractor";
 import type { PlagiarismHighlightedSection } from "@shared/schema";
+import { checkAgainstInternalDatabase, createDocumentFingerprint, type InternalMatch } from "./internalPlagiarismChecker";
+import { searchForPlagiarism, isWebSearchEnabled, type WebSearchResult } from "./webSearchService";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -23,6 +25,8 @@ export interface PlagiarismScanResult {
   summary: string;
   highlightedSections: PlagiarismHighlightedSection[];
   matches: PlagiarismMatch[];
+  hasInternalMatches?: boolean;
+  webSearchEnabled?: boolean;
 }
 
 function getVerdict(score: number): "original" | "low" | "moderate" | "high" {
@@ -254,4 +258,78 @@ Respond with ONLY valid JSON:
       matches: [],
     };
   }
+}
+
+export async function scanForPlagiarismEnhanced(
+  text: string,
+  documentId: string,
+  userId: string,
+  fileName: string
+): Promise<PlagiarismScanResult> {
+  const baseResult = await scanForPlagiarism(text);
+  
+  let internalMatches: InternalMatch[] = [];
+  let webMatches: WebSearchResult[] = [];
+  
+  try {
+    const internalCheck = await checkAgainstInternalDatabase(documentId, text);
+    internalMatches = internalCheck.matches;
+    
+    if (internalCheck.highestMatch > 0) {
+      console.log(`[PLAGIARISM] Internal database: ${internalCheck.matches.length} matches, highest ${internalCheck.highestMatch}%`);
+      
+      if (internalCheck.highestMatch > baseResult.plagiarismScore) {
+        baseResult.plagiarismScore = Math.max(baseResult.plagiarismScore, internalCheck.highestMatch);
+        baseResult.verdict = getVerdict(baseResult.plagiarismScore);
+      }
+      
+      baseResult.summary += ` ALERT: This content matches previously submitted documents in our database.`;
+    }
+    
+    await createDocumentFingerprint(documentId, userId, fileName, text);
+  } catch (error) {
+    console.error("[PLAGIARISM] Internal check error:", error);
+  }
+  
+  if (isWebSearchEnabled()) {
+    try {
+      const sentences = splitIntoSentences(text);
+      webMatches = await searchForPlagiarism(sentences);
+      
+      if (webMatches.length > 0) {
+        console.log(`[PLAGIARISM] Web search: ${webMatches.length} matches found`);
+        
+        for (const match of webMatches) {
+          if (match.matchedText) {
+            const startIdx = text.indexOf(match.matchedText);
+            baseResult.matches.push({
+              sourceUrl: match.url,
+              sourceTitle: match.title,
+              matchedText: match.matchedText,
+              originalText: match.matchedText,
+              similarityScore: match.similarity || 50,
+              startIndex: startIdx >= 0 ? startIdx : 0,
+              endIndex: startIdx >= 0 ? startIdx + match.matchedText.length : match.matchedText.length,
+            });
+          }
+        }
+        
+        if (webMatches.length > 2) {
+          baseResult.plagiarismScore = Math.max(baseResult.plagiarismScore, 60 + webMatches.length * 5);
+          baseResult.verdict = getVerdict(baseResult.plagiarismScore);
+          baseResult.summary += ` Web search found ${webMatches.length} potential online source(s).`;
+        }
+      }
+    } catch (error) {
+      console.error("[PLAGIARISM] Web search error:", error);
+    }
+  } else {
+    console.log("[PLAGIARISM] Web search not enabled - skipping");
+  }
+  
+  return {
+    ...baseResult,
+    hasInternalMatches: internalMatches.length > 0,
+    webSearchEnabled: isWebSearchEnabled(),
+  };
 }
