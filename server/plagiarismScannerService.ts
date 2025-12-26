@@ -168,33 +168,46 @@ Respond with ONLY valid JSON:
     
     let totalScore = 0;
     let scoredCount = 0;
+    const allSentenceScores: { text: string; score: number; source: string | null }[] = [];
     
     for (const item of parsed.sentences || []) {
       const score = typeof item.score === 'number' ? item.score : 0;
-      const isCopied = item.copied === true || score > 50;
+      const sentenceText = item.text || item.original || "";
       
       totalScore += score;
       scoredCount++;
       
-      if (isCopied && score > 40) {
-        const sentenceText = item.text || item.original || "";
-        const startIndex = text.indexOf(sentenceText);
+      if (sentenceText.length > 10) {
+        allSentenceScores.push({
+          text: sentenceText,
+          score,
+          source: item.source || null,
+        });
+      }
+    }
+    
+    const avgScore = scoredCount > 0 ? totalScore / scoredCount : 0;
+    
+    const highlightThreshold = avgScore > 60 ? 30 : avgScore > 40 ? 40 : 50;
+    
+    for (const item of allSentenceScores) {
+      if (item.score >= highlightThreshold) {
+        const startIndex = text.indexOf(item.text);
         
-        if (startIndex >= 0 || sentenceText.length > 20) {
+        if (startIndex >= 0) {
           matches.push({
             sourceUrl: null,
             sourceTitle: item.source || "Educational/Online Source",
-            matchedText: sentenceText,
-            originalText: sentenceText,
-            similarityScore: score,
-            startIndex: startIndex >= 0 ? startIndex : 0,
-            endIndex: startIndex >= 0 ? startIndex + sentenceText.length : sentenceText.length,
+            matchedText: item.text,
+            originalText: item.text,
+            similarityScore: item.score,
+            startIndex: startIndex,
+            endIndex: startIndex + item.text.length,
           });
         }
       }
     }
 
-    const avgScore = scoredCount > 0 ? totalScore / scoredCount : 0;
     const matchRatio = matches.length / Math.max(1, sampledSentences.length);
     
     let rawScore: number;
