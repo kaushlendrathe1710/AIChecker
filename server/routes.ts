@@ -532,14 +532,19 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid file type. Please upload PDF, DOCX, or TXT files." });
       }
 
-      const s3KeyPrefix = `ai-checks/${req.userId}/${Date.now()}-${req.file.originalname}`;
-      const uploadResult = await uploadFile(req.file.buffer, s3KeyPrefix, req.file.mimetype);
+      const fileBuffer = Buffer.from(req.file.buffer);
+      const fileMimetype = req.file.mimetype;
+      const fileName = req.file.originalname;
+      const fileSize = req.file.size;
+      
+      const s3KeyPrefix = `ai-checks/${req.userId}/${Date.now()}-${fileName}`;
+      const uploadResult = await uploadFile(fileBuffer, s3KeyPrefix, fileMimetype);
 
       const doc = await storage.createDocument({
         userId: req.userId!,
-        fileName: req.file.originalname,
-        fileType: req.file.mimetype,
-        fileSize: req.file.size,
+        fileName: fileName,
+        fileType: fileMimetype,
+        fileSize: fileSize,
         s3Key: uploadResult.key,
         s3Url: uploadResult.url,
       });
@@ -563,15 +568,19 @@ export async function registerRoutes(
 
       (async () => {
         try {
-          const text = await extractText(req.file!.buffer, req.file!.mimetype);
+          console.log("[AI CHECK] Starting text extraction for document:", doc.id);
+          const text = await extractText(fileBuffer, fileMimetype);
           const wordCount = countWords(text);
+          console.log("[AI CHECK] Extracted text length:", text.length, "words:", wordCount);
           await storage.updateDocument(doc.id, { extractedText: text, wordCount });
 
           const startTime = Date.now();
+          console.log("[AI CHECK] Starting AI scan...");
           const result = await scanForAI(text);
           const duration = Math.round((Date.now() - startTime) / 1000);
+          console.log("[AI CHECK] Scan complete. Score:", result.aiScore, "Verdict:", result.verdict, "Duration:", duration, "s");
 
-          await storage.updateAiCheckResult(aiCheckResult.id, {
+          const updated = await storage.updateAiCheckResult(aiCheckResult.id, {
             aiScore: result.aiScore,
             verdict: result.verdict,
             analysis: result.analysis,
@@ -579,10 +588,12 @@ export async function registerRoutes(
             scanDuration: duration,
             status: "completed",
           });
+          console.log("[AI CHECK] Updated result in DB:", updated?.id, "aiScore:", updated?.aiScore);
 
           await storage.updateDocument(doc.id, { status: "completed" });
+          console.log("[AI CHECK] Document status updated to completed");
         } catch (error) {
-          console.error("AI check error:", error);
+          console.error("[AI CHECK] Error:", error);
           await storage.updateAiCheckResult(aiCheckResult.id, { status: "failed" });
           await storage.updateDocument(doc.id, { status: "failed" });
         }
@@ -651,14 +662,19 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid file type. Please upload PDF, DOCX, or TXT files." });
       }
 
-      const s3KeyPrefix = `plagiarism-checks/${req.userId}/${Date.now()}-${req.file.originalname}`;
-      const uploadResult = await uploadFile(req.file.buffer, s3KeyPrefix, req.file.mimetype);
+      const fileBuffer = Buffer.from(req.file.buffer);
+      const fileMimetype = req.file.mimetype;
+      const fileName = req.file.originalname;
+      const fileSize = req.file.size;
+      
+      const s3KeyPrefix = `plagiarism-checks/${req.userId}/${Date.now()}-${fileName}`;
+      const uploadResult = await uploadFile(fileBuffer, s3KeyPrefix, fileMimetype);
 
       const doc = await storage.createDocument({
         userId: req.userId!,
-        fileName: req.file.originalname,
-        fileType: req.file.mimetype,
-        fileSize: req.file.size,
+        fileName: fileName,
+        fileType: fileMimetype,
+        fileSize: fileSize,
         s3Key: uploadResult.key,
         s3Url: uploadResult.url,
       });
@@ -682,15 +698,19 @@ export async function registerRoutes(
 
       (async () => {
         try {
-          const text = await extractText(req.file!.buffer, req.file!.mimetype);
+          console.log("[PLAGIARISM CHECK] Starting text extraction for document:", doc.id);
+          const text = await extractText(fileBuffer, fileMimetype);
           const wordCount = countWords(text);
+          console.log("[PLAGIARISM CHECK] Extracted text length:", text.length, "words:", wordCount);
           await storage.updateDocument(doc.id, { extractedText: text, wordCount });
 
           const startTime = Date.now();
+          console.log("[PLAGIARISM CHECK] Starting plagiarism scan...");
           const result = await scanForPlagiarism(text);
           const duration = Math.round((Date.now() - startTime) / 1000);
+          console.log("[PLAGIARISM CHECK] Scan complete. Score:", result.plagiarismScore, "Verdict:", result.verdict, "Duration:", duration, "s");
 
-          await storage.updatePlagiarismCheckResult(plagiarismResult.id, {
+          const updated = await storage.updatePlagiarismCheckResult(plagiarismResult.id, {
             plagiarismScore: result.plagiarismScore,
             verdict: result.verdict,
             summary: result.summary,
@@ -698,6 +718,7 @@ export async function registerRoutes(
             scanDuration: duration,
             status: "completed",
           });
+          console.log("[PLAGIARISM CHECK] Updated result in DB:", updated?.id, "plagiarismScore:", updated?.plagiarismScore);
 
           for (const match of result.matches) {
             await storage.createPlagiarismMatch({
@@ -711,10 +732,12 @@ export async function registerRoutes(
               endIndex: match.endIndex,
             });
           }
+          console.log("[PLAGIARISM CHECK] Created", result.matches.length, "matches");
 
           await storage.updateDocument(doc.id, { status: "completed" });
+          console.log("[PLAGIARISM CHECK] Document status updated to completed");
         } catch (error) {
-          console.error("Plagiarism check error:", error);
+          console.error("[PLAGIARISM CHECK] Error:", error);
           await storage.updatePlagiarismCheckResult(plagiarismResult.id, { status: "failed" });
           await storage.updateDocument(doc.id, { status: "failed" });
         }
@@ -787,14 +810,19 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid file type. Please upload PDF, DOCX, or TXT files." });
       }
 
-      const s3KeyPrefix = `grammar-checks/${req.userId}/${Date.now()}-${req.file.originalname}`;
-      const uploadResult = await uploadFile(req.file.buffer, s3KeyPrefix, req.file.mimetype);
+      const fileBuffer = Buffer.from(req.file.buffer);
+      const fileMimetype = req.file.mimetype;
+      const fileName = req.file.originalname;
+      const fileSize = req.file.size;
+      
+      const s3KeyPrefix = `grammar-checks/${req.userId}/${Date.now()}-${fileName}`;
+      const uploadResult = await uploadFile(fileBuffer, s3KeyPrefix, fileMimetype);
 
       const doc = await storage.createDocument({
         userId: req.userId!,
-        fileName: req.file.originalname,
-        fileType: req.file.mimetype,
-        fileSize: req.file.size,
+        fileName: fileName,
+        fileType: fileMimetype,
+        fileSize: fileSize,
         s3Key: uploadResult.key,
         s3Url: uploadResult.url,
       });
@@ -807,7 +835,7 @@ export async function registerRoutes(
 
       (async () => {
         try {
-          const text = await extractText(req.file!.buffer, req.file!.mimetype);
+          const text = await extractText(fileBuffer, fileMimetype);
           const wordCount = countWords(text);
           await storage.updateDocument(doc.id, { extractedText: text, wordCount });
 
