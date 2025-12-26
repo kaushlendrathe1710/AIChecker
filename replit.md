@@ -118,10 +118,18 @@ User schema includes:
 2. Text extracted using mammoth (DOCX) or pdf-parse (PDF)
 3. Text split into chunks for analysis (500 tokens per chunk, up to 8 chunks for AI detection)
 4. OpenAI GPT-4o analyzes content using two parallel detection methods:
-   - **AI Content Detection**: Analyzes structural patterns, linguistic markers, content characteristics, and semantic patterns to identify AI-generated text
-   - **Web Plagiarism Detection**: Checks 15 sample sentences against known patterns with confidence scoring (45+ threshold for matches)
-5. Results stored with highlighted sections indicating AI-generated or plagiarized content
-6. Report generated with overall score, AI score, and web score with match details
+   - **AI Content Detection**: Analyzes structural patterns, linguistic markers, content characteristics, and semantic patterns to identify AI-generated text. Identifies specific AI models (ChatGPT, Claude, Grok, Gemini) with confidence scores.
+   - **Web Plagiarism Detection**: Checks 15 sample sentences against known patterns with confidence scoring (45+ threshold for matches). Aggressively flags academic patterns: complex sentences, passive voice, sophisticated vocabulary, textbook-style definitions.
+5. **Internal Database Comparison**: Compares against all previously submitted documents using MD5 fingerprints. Privacy-safe implementation - no user-identifiable data exposed in responses.
+6. **Optional Web Search**: Structure ready for Google Custom Search API integration (requires GOOGLE_CUSTOM_SEARCH_API_KEY and GOOGLE_CUSTOM_SEARCH_CX secrets)
+7. Results stored with highlighted sections indicating AI-generated or plagiarized content
+8. Report generated with overall score, AI score, and web score with match details
+
+Key files:
+- `server/aiScanner.ts`: AI content detection with model identification (detectAiModel function)
+- `server/plagiarismScannerService.ts`: Enhanced scanning with internal database and web search integration
+- `server/internalPlagiarismChecker.ts`: Document fingerprinting for duplicate detection
+- `server/webSearchService.ts`: Web search integration (currently disabled, ready for API key)
 
 ### Grammar Checking Pipeline
 
