@@ -2,10 +2,12 @@ import OpenAI from "openai";
 import { splitIntoSentences, splitIntoChunks } from "./textExtractor";
 import type { HighlightedSection } from "@shared/schema";
 
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+function getOpenAI() {
+  return new OpenAI({
+    apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || "placeholder",
+    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  });
+}
 
 interface ScanResult {
   overallScore: number;
@@ -49,7 +51,7 @@ async function detectAIContent(text: string): Promise<{
 
   for (const chunk of chunks.slice(0, 8)) {
     try {
-      const response = await openai.chat.completions.create({
+      const response = await getOpenAI().chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
@@ -150,7 +152,7 @@ async function checkWebPlagiarism(text: string): Promise<{
   }[] = [];
 
   try {
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: "gpt-4o",
       messages: [
         {

@@ -2,7 +2,9 @@ import PptxGenJS from "pptxgenjs";
 import { slideTemplates, presentationTemplates, ThemeConfig, SlideTemplate } from "./pptTemplates";
 import OpenAI from "openai";
 
-const openai = new OpenAI();
+function getOpenAI() {
+  return new OpenAI();
+}
 
 export interface SlideData {
   templateId: string;
@@ -31,7 +33,7 @@ async function generateFootnote(slideContent: Record<string, string>, slideTempl
       return "";
     }
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: "gpt-4o",
       messages: [
         {

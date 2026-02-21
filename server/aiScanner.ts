@@ -2,10 +2,12 @@ import OpenAI from "openai";
 import { splitIntoChunks } from "./textExtractor";
 import type { AiHighlightedSection } from "@shared/schema";
 
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+function getOpenAI() {
+  return new OpenAI({
+    apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || "placeholder",
+    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  });
+}
 
 export interface AiModelDetection {
   model: "chatgpt" | "claude" | "grok" | "gemini" | "other_ai" | "unknown";
@@ -33,7 +35,7 @@ async function detectAiModel(text: string): Promise<AiModelDetection> {
   try {
     const sampleText = text.substring(0, 2000);
     
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
@@ -104,7 +106,7 @@ export async function scanForAI(text: string): Promise<AiScanResult> {
 
   for (const chunk of chunks.slice(0, 8)) {
     try {
-      const response = await openai.chat.completions.create({
+      const response = await getOpenAI().chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
