@@ -97,7 +97,10 @@ function AuthRoute({ component: Component }: { component: () => JSX.Element }) {
     );
   }
 
-  if (isAuthenticated && !needsRegistration) {
+  if (isAuthenticated) {
+    if (needsRegistration) {
+      return <Redirect to="/register" />;
+    }
     return <Redirect to="/dashboard" />;
   }
 
