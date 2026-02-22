@@ -140,6 +140,38 @@ Key files:
 5. Results displayed with error breakdown by category and severity
 6. Users can copy corrected text or download as a file
 
+### Design Studio
+
+A comprehensive canvas-based design editor (similar to Canva/Adobe) for creating visual content:
+
+- **Route**: `/design-studio` (protected, requires authentication)
+- **Canvas Library**: Konva.js (react-konva v18) for 2D rendering
+- **State Management**: Zustand store with undo/redo history
+- **Features**:
+  - Canvas editor with drag-and-drop text, shapes (rect, circle, triangle, star, hexagon, line, arrow), and images
+  - 50+ Google Fonts with full text styling (bold, italic, alignment, spacing, stroke)
+  - Shape fills, gradients (linear/radial), borders, corner radius, opacity
+  - Image upload with brightness/contrast filters
+  - Layer management (reorder, visibility, locking, duplication)
+  - Properties panel for transform, styling, shadows, and canvas alignment
+  - 15+ animation presets (fade, slide, zoom, bounce, rotate, pulse, shake, float, etc.)
+  - Keyframe-based animation with easing functions
+  - Template library (8+ templates across Social Media, Posters, Brochures, Presentations, Video, Stories, Banners)
+  - Canvas size presets (Instagram, Facebook, YouTube, A4, Letter, 16:9, etc.)
+  - Export: PNG, JPG, SVG, Video (WebM) with quality scaling
+  - Project save/load via localStorage
+  - Keyboard shortcuts (Ctrl+Z undo, Ctrl+Y redo, Ctrl+C/V copy/paste, Ctrl+D duplicate, Delete)
+  - Grid overlay and snap-to-grid
+
+Key files:
+- `client/src/editor/EditorApp.tsx`: Main editor layout
+- `client/src/editor/store/editorStore.ts`: Zustand state store
+- `client/src/editor/canvas/CanvasStage.tsx`: Konva.js canvas renderer
+- `client/src/editor/toolbar/EditorToolbar.tsx`: Editor toolbar
+- `client/src/editor/panels/`: Templates, Text, Elements, Uploads, Layers, Animations, Properties, Export panels
+- `client/src/editor/data/`: Templates, fonts, animation presets
+- `client/src/editor/utils/export.ts`: Export utilities
+
 ### Replit Integrations
 
 The project includes pre-built integration modules in `server/replit_integrations/`:
