@@ -28,6 +28,7 @@ import AdminSubscriptions from "@/pages/admin/subscriptions";
 import AdminDocuments from "@/pages/admin/documents";
 import AdminManagement from "@/pages/admin/admins";
 import NotFound from "@/pages/not-found";
+import EditorApp from "@/editor/EditorApp";
 
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
   const { isAuthenticated, isLoading, needsRegistration } = useAuth();
@@ -244,6 +245,9 @@ function AppRouter() {
             </DashboardLayout>
           )}
         />
+      </Route>
+      <Route path="/design-studio">
+        <ProtectedRoute component={EditorApp} />
       </Route>
       <Route path="/admin">
         <AdminRoute

@@ -36,6 +36,7 @@ import {
   Search,
   FileOutput,
   Presentation,
+  Palette,
 } from "lucide-react";
 
 const menuItems = [
@@ -43,6 +44,7 @@ const menuItems = [
   { title: "AI Check", url: "/ai-check", icon: Bot },
   { title: "Plagiarism Check", url: "/plagiarism-check", icon: Search },
   { title: "Grammar Check", url: "/grammar-check", icon: SpellCheck },
+  { title: "Design Studio", url: "/design-studio", icon: Palette },
   { title: "PPT Creator", url: "/ppt-creator", icon: Presentation },
   { title: "File Converter", url: "/file-converter", icon: FileOutput },
   { title: "History", url: "/documents", icon: History },
